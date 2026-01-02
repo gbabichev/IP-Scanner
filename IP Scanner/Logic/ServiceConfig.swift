@@ -31,7 +31,8 @@ struct ServiceConfig: Identifiable, Codable, Hashable, Sendable {
             return defaultConfigs()
         }
         do {
-            return try JSONDecoder().decode([ServiceConfig].self, from: data)
+            let decoded = try JSONDecoder().decode([ServiceConfig].self, from: data)
+            return mergeDefaults(into: decoded)
         } catch {
             return defaultConfigs()
         }
@@ -48,5 +49,24 @@ struct ServiceConfig: Identifiable, Codable, Hashable, Sendable {
 
     static func defaultJSON() -> String {
         encode(defaultConfigs())
+    }
+
+    private static func mergeDefaults(into existing: [ServiceConfig]) -> [ServiceConfig] {
+        let defaultConfigs = defaultConfigs()
+        let existingKeys = Set(existing.map { key(for: $0) })
+        let missingDefaults = defaultConfigs.filter { !existingKeys.contains(key(for: $0)) }
+        let customConfigs = existing.filter { !isDefault($0, defaults: defaultConfigs) }
+        let merged = defaultConfigs.map { def in
+            existing.first { key(for: $0) == key(for: def) } ?? def
+        }
+        return merged + customConfigs + missingDefaults
+    }
+
+    private static func isDefault(_ config: ServiceConfig, defaults: [ServiceConfig]) -> Bool {
+        defaults.contains { key(for: $0) == key(for: config) }
+    }
+
+    private static func key(for config: ServiceConfig) -> String {
+        "\(config.name.lowercased()):\(config.port)"
     }
 }
