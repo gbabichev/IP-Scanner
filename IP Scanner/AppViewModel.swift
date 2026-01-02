@@ -25,7 +25,7 @@ struct IPScanResult: Identifiable {
 
 @MainActor
 final class AppViewModel: ObservableObject {
-    @Published var inputRange: String = "192.168.1.1-192.168.1.15"
+    @Published var inputRange: String = "192.168.20.1-192.168.20.5"
     @Published var results: [IPScanResult] = []
     @Published var isScanning: Bool = false
     @Published var progressText: String = ""
@@ -147,11 +147,14 @@ final class AppViewModel: ObservableObject {
 
             let connection = NWConnection(host: host, port: nwPort, using: .tcp)
             let queue = DispatchQueue(label: "port-check-\(ip)-\(port)")
-            var didFinish = false
+            final class FinishState: @unchecked Sendable {
+                var didFinish = false
+            }
+            let state = FinishState()
 
-            func finish(_ status: PortStatus) {
-                if didFinish { return }
-                didFinish = true
+            let finish: @Sendable (PortStatus) -> Void = { status in
+                if state.didFinish { return }
+                state.didFinish = true
                 connection.cancel()
                 continuation.resume(returning: status)
             }
