@@ -41,14 +41,6 @@ final class BonjourBrowser: NSObject, NetServiceBrowserDelegate, NetServiceDeleg
         }
     }
 
-    func stop() {
-        browser.stop()
-        for service in services {
-            service.stop()
-        }
-        services.removeAll()
-    }
-
     func netServiceBrowser(_ browser: NetServiceBrowser, didFind service: NetService, moreComing: Bool) {
         services.append(service)
         service.delegate = self

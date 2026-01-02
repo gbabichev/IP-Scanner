@@ -9,14 +9,27 @@ import SwiftUI
 
 @main
 struct IP_ScannerApp: App {
+    
     @FocusedValue(\.exportCSVAction) private var exportCSVAction
     @Environment(\.openWindow) private var openWindow
-
+    @State private var isAboutPresented: Bool = false
+    
     var body: some Scene {
         WindowGroup(id: "main") {
             ContentView()
+                .sheet(isPresented: $isAboutPresented) {
+                    AboutView()
+                }
         }
         .commands {
+            CommandGroup(replacing: .appInfo) {
+                Button {
+                    isAboutPresented = true
+                } label: {
+                    Label("About IP Scanner", systemImage: "info.circle")
+                }
+            }
+            
             CommandGroup(replacing: .newItem) {
                 Button {
                     openWindow(id: "main")
@@ -25,6 +38,7 @@ struct IP_ScannerApp: App {
                 }
                 .keyboardShortcut("n")
             }
+            
             CommandGroup(after: .newItem) {
                 Divider()
                 Button {
