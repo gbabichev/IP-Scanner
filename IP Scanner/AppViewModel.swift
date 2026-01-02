@@ -91,6 +91,15 @@ final class AppViewModel: ObservableObject {
         progressText = ""
     }
 
+    func fillWithCurrentSubnet() {
+        if let range = currentSubnetRange() {
+            inputRange = range
+            statusMessage = ""
+        } else {
+            statusMessage = "Unable to determine local subnet."
+        }
+    }
+
     private func checkAlive(_ ip: String) async -> Bool {
         for port in discoveryPorts {
             let status = await checkPortStatus(ip: ip, port: port, timeout: 0.8)
@@ -216,5 +225,50 @@ final class AppViewModel: ObservableObject {
         let b3 = (value >> 8) & 0xFF
         let b4 = value & 0xFF
         return "\(b1).\(b2).\(b3).\(b4)"
+    }
+
+    private func currentSubnetRange() -> String? {
+        var ifaddrPointer: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&ifaddrPointer) == 0, let firstAddr = ifaddrPointer else {
+            return nil
+        }
+        defer { freeifaddrs(firstAddr) }
+
+        var pointer: UnsafeMutablePointer<ifaddrs>? = firstAddr
+        while let addr = pointer?.pointee {
+            defer { pointer = addr.ifa_next }
+            let flags = addr.ifa_flags
+            if (flags & UInt32(IFF_UP)) == 0 || (flags & UInt32(IFF_LOOPBACK)) != 0 {
+                continue
+            }
+            guard let sockaddrPtr = addr.ifa_addr,
+                  sockaddrPtr.pointee.sa_family == sa_family_t(AF_INET),
+                  let netmaskPtr = addr.ifa_netmask else {
+                continue
+            }
+
+            let ipAddr = sockaddrPtr.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { $0.pointee.sin_addr }
+            let maskAddr = netmaskPtr.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { $0.pointee.sin_addr }
+
+            let ip = UInt32(bigEndian: ipAddr.s_addr)
+            let mask = UInt32(bigEndian: maskAddr.s_addr)
+
+            let firstOctet = (ip >> 24) & 0xFF
+            if firstOctet == 169 {
+                continue
+            }
+
+            let network = ip & mask
+            let broadcast = network | (~mask)
+            let start = network + 1
+            let end = broadcast - 1
+            if start >= end {
+                continue
+            }
+
+            return "\(uint32ToIPv4(start))-\(uint32ToIPv4(end))"
+        }
+
+        return nil
     }
 }

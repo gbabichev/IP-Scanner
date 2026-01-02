@@ -9,22 +9,19 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var viewModel = AppViewModel()
+    @AppStorage("inputRange") private var storedRange: String = "192.168.1.1-192.168.1.15"
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("IP Scanner")
+            Text("Enter IP or Range")
                 .font(.title2)
+            Text("Enter an IP range like 192.168.1.1-192.168.1.15 or use the network button to autofill.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             HStack {
-                TextField("192.168.1.1-192.168.1.15", text: $viewModel.inputRange)
+                TextField("192.168.1.1-192.168.1.5", text: $storedRange)
                     .textFieldStyle(.roundedBorder)
-                Button(viewModel.isScanning ? "Stop" : "Scan") {
-                    if viewModel.isScanning {
-                        viewModel.stopScan()
-                    } else {
-                        viewModel.startScan()
-                    }
-                }
             }
 
             if !viewModel.statusMessage.isEmpty {
@@ -58,5 +55,39 @@ struct ContentView: View {
         }
         .padding(16)
         .frame(minWidth: 520, minHeight: 420)
+        .onAppear {
+            viewModel.inputRange = storedRange
+        }
+        .onChange(of: storedRange) { _,newValue in
+            viewModel.inputRange = newValue
+        }
+        .onChange(of: viewModel.inputRange) { _,newValue in
+            if storedRange != newValue {
+                storedRange = newValue
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    viewModel.fillWithCurrentSubnet()
+                } label: {
+                    Image(systemName: "network")
+                }
+                .help("Use current subnet")
+            }
+            
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    if viewModel.isScanning {
+                        viewModel.stopScan()
+                    } else {
+                        viewModel.startScan()
+                    }
+                } label: {
+                    Image(systemName: viewModel.isScanning ? "stop.fill" : "play.fill")
+                }
+                .help(viewModel.isScanning ? "Stop" : "Scan")
+            }
+        }
     }
 }
