@@ -295,6 +295,9 @@ private enum Scanner {
     }
 
     private static func checkAlive(_ ip: String) async -> Bool {
+        if await icmpPing(ip, timeout: 1.0) {
+            return true
+        }
         for port in discoveryPorts {
             let status = await checkPortStatus(ip: ip, port: port, timeout: 0.8)
             if status == .open || status == .closed {
@@ -397,6 +400,27 @@ private enum Scanner {
             return reverse
         }
         return await bonjourCache.hostname(for: ip)
+    }
+
+    private static func icmpPing(_ ip: String, timeout: TimeInterval) async -> Bool {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async {
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/sbin/ping")
+                let timeoutMs = Int(max(1, timeout * 1000))
+                process.arguments = ["-c", "1", "-W", "\(timeoutMs)", "-n", ip]
+
+                do {
+                    try process.run()
+                } catch {
+                    continuation.resume(returning: false)
+                    return
+                }
+
+                process.waitUntilExit()
+                continuation.resume(returning: process.terminationStatus == 0)
+            }
+        }
     }
 
     static func uint32ToIPv4(_ value: UInt32) -> String {
