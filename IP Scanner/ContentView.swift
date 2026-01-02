@@ -13,6 +13,20 @@ struct ContentView: View {
     @AppStorage("inputRange") private var storedRange: String = "192.168.1.1-192.168.1.15"
     @State private var isExporting = false
     @State private var exportDocument = CSVDocument(text: "")
+    @State private var hideNoResponse = false
+    @State private var onlyWithServices = false
+
+    private var filteredResults: [IPScanResult] {
+        viewModel.results.filter { result in
+            if hideNoResponse && !result.isAlive {
+                return false
+            }
+            if onlyWithServices && result.openServices.isEmpty {
+                return false
+            }
+            return true
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -38,28 +52,46 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
             }
 
-            List(viewModel.results) { result in
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text(result.ipAddress)
-                            .font(.headline)
-                        if let hostname = result.hostname, !hostname.isEmpty {
-                            Text(hostname)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                        Text(result.isAlive ? "Alive" : "No response")
-                            .foregroundStyle(result.isAlive ? .green : .secondary)
-                    }
-                    Spacer()
-                    if result.isAlive {
-                        Text(result.openServices.map { $0.name }.joined(separator: ", "))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
+            HStack(spacing: 8) {
+                Button("Hide No Response") {
+                    hideNoResponse.toggle()
                 }
-                .padding(.vertical, 4)
+                .buttonStyle(.bordered)
+                .tint(hideNoResponse ? .blue : .primary)
+
+                Button("Only With Services") {
+                    onlyWithServices.toggle()
+                }
+                .buttonStyle(.bordered)
+                .tint(onlyWithServices ? .blue : .primary)
+
+                Button("Reset View") {
+                    hideNoResponse = false
+                    onlyWithServices = false
+                }
+                .buttonStyle(.bordered)
             }
+
+            Table(filteredResults) {
+                TableColumn("IP") { result in
+                    Text(result.ipAddress)
+                }
+                TableColumn("Hostname") { result in
+                    Text(result.hostname ?? "")
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+                TableColumn("Status") { result in
+                    Text(result.isAlive ? "Alive" : "No response")
+                        .foregroundStyle(result.isAlive ? .green : .secondary)
+                }
+                TableColumn("Services") { result in
+                    Text(result.servicesSummary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+            }
+            .tableStyle(.inset)
         }
         .padding(16)
         .frame(minWidth: 520, minHeight: 420)

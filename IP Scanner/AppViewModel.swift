@@ -22,6 +22,7 @@ struct IPScanResult: Identifiable, Sendable {
     var hostname: String?
     var isAlive: Bool
     var openServices: [Service]
+    var servicesSummary: String
 }
 
 @MainActor
@@ -77,8 +78,8 @@ final class AppViewModel: ObservableObject {
                     nextIndex += 1
 
                     group.addTask {
-                        let result = await Scanner.scan(ipValue: ipValue, bonjourCache: self.bonjourCache)
-                        return (index, result)
+                    let result = await Scanner.scan(ipValue: ipValue, bonjourCache: self.bonjourCache)
+                    return (index, result)
                     }
                 }
 
@@ -291,7 +292,14 @@ private enum Scanner {
             }
         }
 
-        return IPScanResult(ipAddress: ipString, hostname: hostname, isAlive: isAlive, openServices: openServices)
+        let summary = openServices.map { $0.name }.joined(separator: ", ")
+        return IPScanResult(
+            ipAddress: ipString,
+            hostname: hostname,
+            isAlive: isAlive,
+            openServices: openServices,
+            servicesSummary: summary
+        )
     }
 
     private static func checkAlive(_ ip: String) async -> Bool {
