@@ -8,9 +8,10 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-struct CSVDocument: FileDocument {
+struct CSVDocument: FileDocument, Identifiable {
     static var readableContentTypes: [UTType] { [.commaSeparatedText] }
 
+    let id = UUID()
     var text: String
 
     init(text: String) {

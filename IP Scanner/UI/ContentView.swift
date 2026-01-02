@@ -10,10 +10,17 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @StateObject private var viewModel = AppViewModel()
+    @EnvironmentObject private var servicesActions: ServicesActionsModel
     @AppStorage("inputRange") private var storedRange: String = "192.168.1.1-192.168.1.15"
-    @State private var isExporting = false
+    @AppStorage("serviceConfigsJSON") private var serviceConfigsJSON: String = ServiceConfig.defaultJSON()
     @State private var exportDocument = CSVDocument(text: "")
+    @State private var exportServicesDocument = ServiceConfigDocument(json: "")
+    @State private var isExporting = false
+    @State private var isExportingServices = false
+    @State private var isImportingServices = false
     @State private var isSettingsPresented = false
+    @State private var pendingServicesExport = false
+    @State private var pendingServicesImport = false
     @State private var hideNoResponse = false
     @State private var onlyWithServices = false
 
@@ -31,77 +38,19 @@ struct ContentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Enter IP or Range")
-                .font(.title2)
-            Text("Enter an IP range like 192.168.1.1-192.168.1.15 or use the network button to autofill.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            HStack {
-                if viewModel.isScanning {
-                    ProgressView()
-                        .help("Scanning")
-                }
-                TextField("192.168.1.1-192.168.1.5", text: $storedRange)
-                    .textFieldStyle(.roundedBorder)
-            }
-
-            if !viewModel.statusMessage.isEmpty {
-                Text(viewModel.statusMessage)
-                    .foregroundStyle(.red)
-            }
-
-            if viewModel.isScanning || !viewModel.progressText.isEmpty {
-                Text(viewModel.progressText)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            HStack(spacing: 8) {
-                Button("Hide No Response") {
-                    hideNoResponse.toggle()
-                }
-                .buttonStyle(.bordered)
-                .tint(hideNoResponse ? .blue : .primary)
-
-                Button("Only With Services") {
-                    onlyWithServices.toggle()
-                }
-                .buttonStyle(.bordered)
-                .tint(onlyWithServices ? .blue : .primary)
-
-                Button("Reset View") {
-                    hideNoResponse = false
-                    onlyWithServices = false
-                }
-                .buttonStyle(.bordered)
-            }
-
-            Table(filteredResults) {
-                TableColumn("IP") { result in
-                    Text(result.ipAddress)
-                }
-                TableColumn("Hostname") { result in
-                    Text(result.hostname ?? "")
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
-                TableColumn("Status") { result in
-                    Text(result.isAlive ? "Alive" : "No response")
-                        .foregroundStyle(result.isAlive ? .green : .secondary)
-                }
-                TableColumn("Services") { result in
-                    Text(result.servicesSummary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
-            }
-            .tableStyle(.inset)
+            headerView
+            inputRow
+            statusView
+            progressView
+            filterButtons
+            resultsTable
         }
         .padding(16)
         .frame(minWidth: 520, minHeight: 420)
         .onAppear {
             viewModel.inputRange = storedRange
+            servicesActions.export = { beginExportServices() }
+            servicesActions.import = { beginImportServices() }
         }
         .onChange(of: storedRange) { _, newValue in
             viewModel.inputRange = newValue
@@ -109,6 +58,16 @@ struct ContentView: View {
         .onChange(of: viewModel.inputRange) { _, newValue in
             if storedRange != newValue {
                 storedRange = newValue
+            }
+        }
+        .onChange(of: isSettingsPresented) { _, newValue in
+            guard !newValue else { return }
+            if pendingServicesExport {
+                pendingServicesExport = false
+                performExportServices()
+            } else if pendingServicesImport {
+                pendingServicesImport = false
+                beginImportServices()
             }
         }
         .focusedValue(
@@ -126,47 +85,209 @@ struct ContentView: View {
             if case .success(let url) = result {
                 viewModel.statusMessage = "Exported to \(url.lastPathComponent)"
             }
+            isExporting = false
+        }
+        .fileExporter(
+            isPresented: $isExportingServices,
+            document: exportServicesDocument,
+            contentType: .json,
+            defaultFilename: "ip-scanner-services"
+        ) { result in
+            if case .success(let url) = result {
+                viewModel.statusMessage = "Exported to \(url.lastPathComponent)"
+            }
+            isExportingServices = false
+        }
+        .fileImporter(
+            isPresented: $isImportingServices,
+            allowedContentTypes: [.json]
+        ) { result in
+            switch result {
+            case .success(let url):
+                importServices(from: url)
+            case .failure:
+                viewModel.statusMessage = "Import failed."
+            }
         }
         .sheet(isPresented: $isSettingsPresented) {
             SettingsView()
         }
         .toolbar {
-            
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    isSettingsPresented = true
-                } label: {
-                    Image(systemName: "gearshape")
-                }
-                .help("Settings")
-            }
-            
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    viewModel.fillWithCurrentSubnet()
-                } label: {
-                    Image(systemName: "network")
-                }
-                .help("Use current subnet")
-            }
-
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    if viewModel.isScanning {
-                        viewModel.stopScan()
-                    } else {
-                        viewModel.startScan()
-                    }
-                } label: {
-                    Image(systemName: viewModel.isScanning ? "stop.fill" : "play.fill")
-                }
-                .help(viewModel.isScanning ? "Stop" : "Scan")
-            }
+            settingsToolbarItem
+            networkToolbarItem
+            scanToolbarItem
         }
     }
 
     private func beginExport() {
         exportDocument = CSVDocument(text: viewModel.csvString())
-        isExporting = true
+        isExporting = false
+        DispatchQueue.main.async {
+            isExporting = true
+        }
     }
+
+    private func beginExportServices() {
+        if isSettingsPresented {
+            pendingServicesExport = true
+            isSettingsPresented = false
+            return
+        }
+        performExportServices()
+    }
+
+    private func performExportServices() {
+        let json = ServiceConfig.exportCustomJSON(from: serviceConfigsJSON)
+        exportServicesDocument = ServiceConfigDocument(json: json)
+        isExportingServices = false
+        DispatchQueue.main.async {
+            isExportingServices = true
+        }
+    }
+
+    private func beginImportServices() {
+        if isSettingsPresented {
+            pendingServicesImport = true
+            isSettingsPresented = false
+            return
+        }
+        isImportingServices = true
+    }
+
+    private func importServices(from url: URL) {
+        do {
+            let data = try Data(contentsOf: url)
+            let json = String(decoding: data, as: UTF8.self)
+            guard let imported = ServiceConfig.decodeRaw(from: json) else {
+                viewModel.statusMessage = "Import failed."
+                return
+            }
+            serviceConfigsJSON = ServiceConfig.mergeCustom(into: serviceConfigsJSON, imported: imported)
+            viewModel.statusMessage = "Services imported."
+        } catch {
+            viewModel.statusMessage = "Import failed."
+        }
+    }
+
+    private var headerView: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Enter IP or Range")
+                .font(.title2)
+            Text("Enter an IP range like 192.168.1.1-192.168.1.15 or use the network button to autofill.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var inputRow: some View {
+        HStack {
+            if viewModel.isScanning {
+                ProgressView()
+                    .help("Scanning")
+            }
+            TextField("192.168.1.1-192.168.1.5", text: $storedRange)
+                .textFieldStyle(.roundedBorder)
+        }
+    }
+
+    @ViewBuilder
+    private var statusView: some View {
+        if !viewModel.statusMessage.isEmpty {
+            Text(viewModel.statusMessage)
+                .foregroundStyle(.red)
+        }
+    }
+
+    @ViewBuilder
+    private var progressView: some View {
+        if viewModel.isScanning || !viewModel.progressText.isEmpty {
+            Text(viewModel.progressText)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var filterButtons: some View {
+        HStack(spacing: 8) {
+            Button("Hide No Response") {
+                hideNoResponse.toggle()
+            }
+            .buttonStyle(.bordered)
+            .tint(hideNoResponse ? .blue : .primary)
+
+            Button("Only With Services") {
+                onlyWithServices.toggle()
+            }
+            .buttonStyle(.bordered)
+            .tint(onlyWithServices ? .blue : .primary)
+
+            Button("Reset View") {
+                hideNoResponse = false
+                onlyWithServices = false
+            }
+            .buttonStyle(.bordered)
+        }
+    }
+
+    private var resultsTable: some View {
+        Table(filteredResults) {
+            TableColumn("IP") { result in
+                Text(result.ipAddress)
+            }
+            TableColumn("Hostname") { result in
+                Text(result.hostname ?? "")
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            TableColumn("Status") { result in
+                Text(result.isAlive ? "Alive" : "No response")
+                    .foregroundStyle(result.isAlive ? .green : .secondary)
+            }
+            TableColumn("Services") { result in
+                Text(result.servicesSummary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+        }
+        .tableStyle(.inset)
+    }
+
+    private var settingsToolbarItem: some ToolbarContent {
+        ToolbarItem(placement: .automatic) {
+            Button {
+                isSettingsPresented = true
+            } label: {
+                Image(systemName: "gearshape")
+            }
+            .help("Settings")
+        }
+    }
+
+    private var networkToolbarItem: some ToolbarContent {
+        ToolbarItem(placement: .primaryAction) {
+            Button {
+                viewModel.fillWithCurrentSubnet()
+            } label: {
+                Image(systemName: "network")
+            }
+            .help("Use current subnet")
+        }
+    }
+
+    private var scanToolbarItem: some ToolbarContent {
+        ToolbarItem(placement: .automatic) {
+            Button {
+                if viewModel.isScanning {
+                    viewModel.stopScan()
+                } else {
+                    viewModel.startScan()
+                }
+            } label: {
+                Image(systemName: viewModel.isScanning ? "stop.fill" : "play.fill")
+            }
+            .help(viewModel.isScanning ? "Stop" : "Scan")
+        }
+    }
+
+    
 }

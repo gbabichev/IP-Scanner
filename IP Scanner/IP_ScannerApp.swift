@@ -13,10 +13,12 @@ struct IP_ScannerApp: App {
     @FocusedValue(\.exportCSVAction) private var exportCSVAction
     @Environment(\.openWindow) private var openWindow
     @State private var isAboutPresented: Bool = false
+    @StateObject private var servicesActions = ServicesActionsModel()
     
     var body: some Scene {
         WindowGroup(id: "main") {
             ContentView()
+                .environmentObject(servicesActions)
                 .sheet(isPresented: $isAboutPresented) {
                     AboutView()
                 }
@@ -49,6 +51,20 @@ struct IP_ScannerApp: App {
                 .keyboardShortcut("e")
                 .disabled(exportCSVAction == nil)
                 Divider()
+            }
+
+            CommandMenu("Services") {
+                Button {
+                    servicesActions.import?()
+                } label: {
+                    Label("Import Services…", systemImage: "square.and.arrow.down")
+                }
+
+                Button {
+                    servicesActions.export?()
+                } label: {
+                    Label("Export Custom Services…", systemImage: "square.and.arrow.up")
+                }
             }
         }
     }
