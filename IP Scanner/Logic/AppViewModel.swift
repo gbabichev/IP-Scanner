@@ -266,14 +266,6 @@ final class AppViewModel: ObservableObject {
 }
 
 private enum Scanner {
-    private static let discoveryPorts: [UInt16] = [80, 443, 22]
-    private static let servicePorts: [Service] = [
-        Service(name: "http", port: 80),
-        Service(name: "https", port: 443),
-        Service(name: "ssh", port: 22),
-        Service(name: "smb", port: 445),
-        Service(name: "netbios", port: 139)
-    ]
 
     static func scan(ipValue: UInt32, bonjourCache: BonjourCache) async -> IPScanResult {
         let ipString = uint32ToIPv4(ipValue)
@@ -283,7 +275,7 @@ private enum Scanner {
 
         if isAlive {
             hostname = await resolveHostname(ipString, bonjourCache: bonjourCache)
-            for service in servicePorts {
+            for service in ServiceCatalog.servicePorts {
                 if Task.isCancelled { break }
                 let status = await checkPortStatus(ip: ipString, port: service.port, timeout: 1.0)
                 if status == .open {
@@ -306,7 +298,7 @@ private enum Scanner {
         if await icmpPing(ip, timeout: 1.0) {
             return true
         }
-        for port in discoveryPorts {
+        for port in ServiceCatalog.discoveryPorts {
             let status = await checkPortStatus(ip: ip, port: port, timeout: 0.8)
             if status == .open || status == .closed {
                 return true
