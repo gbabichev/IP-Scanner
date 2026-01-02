@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 import Darwin
 import Network
 import Combine
@@ -36,6 +37,7 @@ final class AppViewModel: ObservableObject {
     private var scanTask: Task<Void, Never>?
     private let bonjourCache = BonjourCache()
     private lazy var bonjourBrowser = BonjourBrowser(cache: bonjourCache)
+    @AppStorage("serviceConfigsJSON") private var serviceConfigsJSON: String = ServiceConfig.defaultJSON()
 
     nonisolated static let maxParallelScans = 32
     
@@ -62,6 +64,8 @@ final class AppViewModel: ObservableObject {
 
         let ipValues = ips
         let total = ipValues.count
+        let enabledServices = activeServices()
+        let discoveryPorts = discoveryPorts(from: enabledServices)
 
         scanTask = Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
@@ -78,8 +82,13 @@ final class AppViewModel: ObservableObject {
                     nextIndex += 1
 
                     group.addTask {
-                    let result = await Scanner.scan(ipValue: ipValue, bonjourCache: self.bonjourCache)
-                    return (index, result)
+                        let result = await Scanner.scan(
+                            ipValue: ipValue,
+                            bonjourCache: self.bonjourCache,
+                            discoveryPorts: discoveryPorts,
+                            servicePorts: enabledServices
+                        )
+                        return (index, result)
                     }
                 }
 
@@ -263,19 +272,40 @@ final class AppViewModel: ObservableObject {
         }
         .joined(separator: ",")
     }
+
+    private func activeServices() -> [Service] {
+        let configs = ServiceConfig.decode(from: serviceConfigsJSON)
+        return configs.compactMap { config in
+            guard config.isEnabled, (1...65535).contains(config.port) else { return nil }
+            return Service(name: config.name, port: UInt16(config.port))
+        }
+    }
+
+    private func discoveryPorts(from services: [Service]) -> [UInt16] {
+        let ports = services.map { $0.port }
+        if ports.isEmpty {
+            return ServiceCatalog.discoveryPorts
+        }
+        return Array(Set(ports)).sorted()
+    }
 }
 
 private enum Scanner {
 
-    static func scan(ipValue: UInt32, bonjourCache: BonjourCache) async -> IPScanResult {
+    static func scan(
+        ipValue: UInt32,
+        bonjourCache: BonjourCache,
+        discoveryPorts: [UInt16],
+        servicePorts: [Service]
+    ) async -> IPScanResult {
         let ipString = uint32ToIPv4(ipValue)
-        let isAlive = await checkAlive(ipString)
+        let isAlive = await checkAlive(ipString, discoveryPorts: discoveryPorts)
         var openServices: [Service] = []
         var hostname: String? = nil
 
         if isAlive {
             hostname = await resolveHostname(ipString, bonjourCache: bonjourCache)
-            for service in ServiceCatalog.servicePorts {
+            for service in servicePorts {
                 if Task.isCancelled { break }
                 let status = await checkPortStatus(ip: ipString, port: service.port, timeout: 1.0)
                 if status == .open {
@@ -294,11 +324,11 @@ private enum Scanner {
         )
     }
 
-    private static func checkAlive(_ ip: String) async -> Bool {
+    private static func checkAlive(_ ip: String, discoveryPorts: [UInt16]) async -> Bool {
         if await icmpPing(ip, timeout: 1.0) {
             return true
         }
-        for port in ServiceCatalog.discoveryPorts {
+        for port in discoveryPorts {
             let status = await checkPortStatus(ip: ip, port: port, timeout: 0.8)
             if status == .open || status == .closed {
                 return true

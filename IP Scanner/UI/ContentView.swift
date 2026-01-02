@@ -13,6 +13,7 @@ struct ContentView: View {
     @AppStorage("inputRange") private var storedRange: String = "192.168.1.1-192.168.1.15"
     @State private var isExporting = false
     @State private var exportDocument = CSVDocument(text: "")
+    @State private var isSettingsPresented = false
     @State private var hideNoResponse = false
     @State private var onlyWithServices = false
 
@@ -126,7 +127,20 @@ struct ContentView: View {
                 viewModel.statusMessage = "Exported to \(url.lastPathComponent)"
             }
         }
+        .sheet(isPresented: $isSettingsPresented) {
+            SettingsView()
+        }
         .toolbar {
+            
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    isSettingsPresented = true
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .help("Settings")
+            }
+            
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     viewModel.fillWithCurrentSubnet()
