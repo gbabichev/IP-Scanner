@@ -384,7 +384,10 @@ private enum Scanner {
                 }
 
                 if status == 0 {
-                    continuation.resume(returning: String(cString: host))
+                    let length = host.firstIndex(of: 0) ?? host.count
+                    let bytes = host.prefix(length).map { UInt8(bitPattern: $0) }
+                    let name = String(decoding: bytes, as: UTF8.self)
+                    continuation.resume(returning: name)
                 } else {
                     continuation.resume(returning: nil)
                 }

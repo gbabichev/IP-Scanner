@@ -68,7 +68,9 @@ final class BonjourBrowser: NSObject, NetServiceBrowserDelegate, NetServiceDeleg
                     var buffer = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
                     let result = inet_ntop(AF_INET, &addr, &buffer, socklen_t(INET_ADDRSTRLEN))
                     guard result != nil else { return }
-                    let ip = String(cString: buffer)
+                    let length = buffer.firstIndex(of: 0) ?? buffer.count
+                    let bytes = buffer.prefix(length).map { UInt8(bitPattern: $0) }
+                    let ip = String(decoding: bytes, as: UTF8.self)
                     Task { await cache.update(ip: ip, hostname: hostname) }
                 }
             }
