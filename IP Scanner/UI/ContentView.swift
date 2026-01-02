@@ -37,6 +37,10 @@ struct ContentView: View {
                 .foregroundStyle(.secondary)
 
             HStack {
+                if viewModel.isScanning {
+                    ProgressView()
+                        .help("Scanning")
+                }
                 TextField("192.168.1.1-192.168.1.5", text: $storedRange)
                     .textFieldStyle(.roundedBorder)
             }
@@ -131,7 +135,7 @@ struct ContentView: View {
                 }
                 .help("Use current subnet")
             }
-            
+
             ToolbarItem(placement: .automatic) {
                 Button {
                     if viewModel.isScanning {
