@@ -33,8 +33,15 @@ final class AppViewModel: ObservableObject {
     @Published var statusMessage: String = ""
 
     private var scanTask: Task<Void, Never>?
+    private let bonjourCache = BonjourCache()
+    private lazy var bonjourBrowser = BonjourBrowser(cache: bonjourCache)
 
     nonisolated static let maxParallelScans = 32
+    
+    init() {
+        bonjourBrowser.start()
+    }
+    
 
     func startScan() {
         stopScan()
@@ -70,7 +77,7 @@ final class AppViewModel: ObservableObject {
                     nextIndex += 1
 
                     group.addTask {
-                        let result = await Scanner.scan(ipValue: ipValue)
+                        let result = await Scanner.scan(ipValue: ipValue, bonjourCache: self.bonjourCache)
                         return (index, result)
                     }
                 }
@@ -267,14 +274,14 @@ private enum Scanner {
         Service(name: "netbios", port: 139)
     ]
 
-    static func scan(ipValue: UInt32) async -> IPScanResult {
+    static func scan(ipValue: UInt32, bonjourCache: BonjourCache) async -> IPScanResult {
         let ipString = uint32ToIPv4(ipValue)
         let isAlive = await checkAlive(ipString)
         var openServices: [Service] = []
         var hostname: String? = nil
 
         if isAlive {
-            hostname = await resolveHostname(ipString)
+            hostname = await resolveHostname(ipString, bonjourCache: bonjourCache)
             for service in servicePorts {
                 if Task.isCancelled { break }
                 let status = await checkPortStatus(ip: ipString, port: service.port, timeout: 1.0)
@@ -347,8 +354,8 @@ private enum Scanner {
         }
     }
 
-    private static func resolveHostname(_ ip: String) async -> String? {
-        await withCheckedContinuation { continuation in
+    private static func resolveHostname(_ ip: String, bonjourCache: BonjourCache) async -> String? {
+        let reverse = await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
             DispatchQueue.global(qos: .utility).async {
                 var addr = sockaddr_in()
                 addr.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
@@ -383,6 +390,10 @@ private enum Scanner {
                 }
             }
         }
+        if let reverse {
+            return reverse
+        }
+        return await bonjourCache.hostname(for: ip)
     }
 
     static func uint32ToIPv4(_ value: UInt32) -> String {
