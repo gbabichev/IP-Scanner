@@ -9,7 +9,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct ContentView: View {
-    @EnvironmentObject private var viewModel: AppViewModel
+    @StateObject private var viewModel = AppViewModel()
     @AppStorage("inputRange") private var storedRange: String = "192.168.1.1-192.168.1.15"
     @State private var isExporting = false
     @State private var exportDocument = CSVDocument(text: "")
@@ -106,9 +106,12 @@ struct ContentView: View {
                 storedRange = newValue
             }
         }
-        .focusedValue(\.exportCSVAction, ExportCSVAction {
-            beginExport()
-        })
+        .focusedValue(
+            \.exportCSVAction,
+            viewModel.results.isEmpty ? nil : ExportCSVAction {
+                beginExport()
+            }
+        )
         .fileExporter(
             isPresented: $isExporting,
             document: exportDocument,
