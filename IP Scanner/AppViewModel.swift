@@ -226,6 +226,35 @@ final class AppViewModel: ObservableObject {
 
         return nil
     }
+
+    func csvString() -> String {
+        let header = ["IP", "Hostname", "Alive", "Services"]
+        var lines: [String] = [csvLine(header)]
+
+        for result in results {
+            let services = result.openServices.map { $0.name }.joined(separator: ";")
+            let row = [
+                result.ipAddress,
+                result.hostname ?? "",
+                result.isAlive ? "yes" : "no",
+                services
+            ]
+            lines.append(csvLine(row))
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
+    private func csvLine(_ fields: [String]) -> String {
+        fields.map { field in
+            let escaped = field.replacingOccurrences(of: "\"", with: "\"\"")
+            if escaped.contains(",") || escaped.contains("\"") || escaped.contains("\n") {
+                return "\"\(escaped)\""
+            }
+            return escaped
+        }
+        .joined(separator: ",")
+    }
 }
 
 private enum Scanner {

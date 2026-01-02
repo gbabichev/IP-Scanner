@@ -9,9 +9,22 @@ import SwiftUI
 
 @main
 struct IP_ScannerApp: App {
+    @StateObject private var viewModel = AppViewModel()
+    @FocusedValue(\.exportCSVAction) private var exportCSVAction
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(viewModel)
+        }
+        .commands {
+            CommandGroup(after: .importExport) {
+                Button("Export CSV…") {
+                    exportCSVAction?.action()
+                }
+                .keyboardShortcut("e")
+                .disabled(viewModel.results.isEmpty || exportCSVAction == nil)
+            }
         }
     }
 }

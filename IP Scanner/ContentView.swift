@@ -6,10 +6,13 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ContentView: View {
-    @StateObject private var viewModel = AppViewModel()
+    @EnvironmentObject private var viewModel: AppViewModel
     @AppStorage("inputRange") private var storedRange: String = "192.168.1.1-192.168.1.15"
+    @State private var isExporting = false
+    @State private var exportDocument = CSVDocument(text: "")
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -63,12 +66,25 @@ struct ContentView: View {
         .onAppear {
             viewModel.inputRange = storedRange
         }
-        .onChange(of: storedRange) { _,newValue in
+        .onChange(of: storedRange) { _, newValue in
             viewModel.inputRange = newValue
         }
-        .onChange(of: viewModel.inputRange) { _,newValue in
+        .onChange(of: viewModel.inputRange) { _, newValue in
             if storedRange != newValue {
                 storedRange = newValue
+            }
+        }
+        .focusedValue(\.exportCSVAction, ExportCSVAction {
+            beginExport()
+        })
+        .fileExporter(
+            isPresented: $isExporting,
+            document: exportDocument,
+            contentType: .commaSeparatedText,
+            defaultFilename: "ip-scan-results"
+        ) { result in
+            if case .success(let url) = result {
+                viewModel.statusMessage = "Exported to \(url.lastPathComponent)"
             }
         }
         .toolbar {
@@ -94,5 +110,10 @@ struct ContentView: View {
                 .help(viewModel.isScanning ? "Stop" : "Scan")
             }
         }
+    }
+
+    private func beginExport() {
+        exportDocument = CSVDocument(text: viewModel.csvString())
+        isExporting = true
     }
 }
