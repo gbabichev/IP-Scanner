@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Darwin
 import Network
 import Combine
 
@@ -56,6 +57,7 @@ final class AppViewModel: ObservableObject {
         progressText = "Starting..."
 
         scanTask = Task {
+            triggerLocalNetworkAccess()
             for (index, ipValue) in ips.enumerated() {
                 if Task.isCancelled { break }
                 let ipString = uint32ToIPv4(ipValue)
@@ -97,6 +99,36 @@ final class AppViewModel: ObservableObject {
             }
         }
         return false
+    }
+
+    private func triggerLocalNetworkAccess() {
+        let sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
+        guard sock >= 0 else { return }
+        defer { close(sock) }
+
+        var yes: Int32 = 1
+        unsafe setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &yes, socklen_t(MemoryLayout<Int32>.size))
+
+        var dest = sockaddr_in()
+        dest.sin_family = sa_family_t(AF_INET)
+        dest.sin_port = in_port_t(9).bigEndian
+        dest.sin_addr = in_addr(s_addr: in_addr_t(0xFFFFFFFF).bigEndian)
+
+        let payload: [UInt8] = [0x00]
+        unsafe payload.withUnsafeBytes { rawBuffer in
+            unsafe withUnsafePointer(to: &dest) {
+                unsafe $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                    _ = unsafe sendto(
+                        sock,
+                        rawBuffer.baseAddress,
+                        rawBuffer.count,
+                        0,
+                        $0,
+                        socklen_t(MemoryLayout<sockaddr_in>.size)
+                    )
+                }
+            }
+        }
     }
 
     private enum PortStatus {
