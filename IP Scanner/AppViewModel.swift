@@ -19,6 +19,7 @@ struct Service: Identifiable, Hashable {
 struct IPScanResult: Identifiable {
     let id = UUID()
     let ipAddress: String
+    var hostname: String?
     var isAlive: Bool
     var openServices: [Service]
 }
@@ -65,7 +66,9 @@ final class AppViewModel: ObservableObject {
 
                 let isAlive = await checkAlive(ipString)
                 var openServices: [Service] = []
+                var hostname: String? = nil
                 if isAlive {
+                    hostname = await resolveHostname(ipString)
                     for service in servicePorts {
                         if Task.isCancelled { break }
                         let status = await checkPortStatus(ip: ipString, port: service.port, timeout: 1.0)
@@ -75,7 +78,7 @@ final class AppViewModel: ObservableObject {
                     }
                 }
 
-                let result = IPScanResult(ipAddress: ipString, isAlive: isAlive, openServices: openServices)
+                let result = IPScanResult(ipAddress: ipString, hostname: hostname, isAlive: isAlive, openServices: openServices)
                 results.append(result)
             }
 
@@ -186,6 +189,44 @@ final class AppViewModel: ObservableObject {
             connection.start(queue: queue)
             queue.asyncAfter(deadline: .now() + timeout) {
                 finish(.timeoutOrError)
+            }
+        }
+    }
+
+    private func resolveHostname(_ ip: String) async -> String? {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async {
+                var addr = sockaddr_in()
+                addr.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+                addr.sin_family = sa_family_t(AF_INET)
+                let result = ip.withCString { cstr in
+                    inet_pton(AF_INET, cstr, &addr.sin_addr)
+                }
+                guard result == 1 else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                var host = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+                let status = withUnsafePointer(to: &addr) { ptr in
+                    ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                        getnameinfo(
+                            $0,
+                            socklen_t(MemoryLayout<sockaddr_in>.size),
+                            &host,
+                            socklen_t(host.count),
+                            nil,
+                            0,
+                            NI_NAMEREQD
+                        )
+                    }
+                }
+
+                if status == 0 {
+                    continuation.resume(returning: String(cString: host))
+                } else {
+                    continuation.resume(returning: nil)
+                }
             }
         }
     }

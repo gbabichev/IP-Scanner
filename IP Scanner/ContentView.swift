@@ -40,6 +40,11 @@ struct ContentView: View {
                     VStack(alignment: .leading) {
                         Text(result.ipAddress)
                             .font(.headline)
+                        if let hostname = result.hostname, !hostname.isEmpty {
+                            Text(hostname)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
                         Text(result.isAlive ? "Alive" : "No response")
                             .foregroundStyle(result.isAlive ? .green : .secondary)
                     }
