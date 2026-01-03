@@ -117,6 +117,7 @@ struct ContentView: View {
         }
         .toolbar {
             settingsToolbarItem
+            titleToolbarItem
             networkToolbarItem
             scanToolbarItem
         }
@@ -274,6 +275,14 @@ struct ContentView: View {
                 Image(systemName: "network")
             }
             .help("Use current subnet")
+        }
+    }
+    
+    private var titleToolbarItem: some ToolbarContent {
+        ToolbarItem(placement: .status) {
+            Text("IP Scanner")
+                .padding(12)
+                .bold()
         }
     }
 

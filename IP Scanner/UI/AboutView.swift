@@ -72,7 +72,7 @@ struct AboutView: View {
 
                 Divider()
 
-                Text("IP Scanner is a simple tool to live clients on the network, and to expose which services are available.")
+                Text("IP Scanner is a lightweight tool for discovering live devices on your network and the services they expose.")
                     .font(.callout)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)

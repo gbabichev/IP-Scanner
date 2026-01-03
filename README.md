@@ -8,6 +8,7 @@ macOS app for scanning IP ranges, resolving hostnames, and reporting open servic
 - Filter results by reachability or by presence of services.
 - Export results to CSV.
 - Manage default and custom service definitions.
+- Add custom services and export/import them as JSON.
 
 ## Usage
 1. Enter an IP or range in the main window.
@@ -16,7 +17,8 @@ macOS app for scanning IP ranges, resolving hostnames, and reporting open servic
 4. Use the menu bar to export results or manage services.
 
 ## Services Export
-Custom services can be exported from the Services menu. The export is pretty-printed JSON for readability.
+Custom services can be exported from the Services menu, and custom service sets can be imported as JSON.
+The export is pretty-printed JSON for readability.
 
 Example JSON schema (each entry in the array is a service):
 ```json

@@ -26,6 +26,7 @@ struct IP_ScannerApp: App {
                     AboutView()
                 }
         }
+        .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(replacing: .appInfo) {
                 Button {

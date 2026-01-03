@@ -60,22 +60,31 @@ struct SettingsView: View {
                 }
             }
 
-            HStack(spacing: 8) {
-                Button("Uncheck All") {
-                    setAllServicesEnabled(false)
-                }
-                .buttonStyle(.bordered)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Button("Check All") {
+                        setAllServicesEnabled(true)
+                    }
+                    .buttonStyle(.bordered)
 
-                Button("Check All") {
-                    setAllServicesEnabled(true)
-                }
-                .buttonStyle(.bordered)
+                    Button("Uncheck All") {
+                        setAllServicesEnabled(false)
+                    }
+                    .buttonStyle(.bordered)
 
-                Button("Delete All Custom Services") {
-                    deleteAllCustomServices()
+                    Button("Common Services") {
+                        selectCommonServices()
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.bordered)
-                .tint(.red)
+
+                HStack(spacing: 8) {
+                    Button("Delete All Custom Services") {
+                        deleteAllCustomServices()
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.red)
+                }
             }
 
             HStack(spacing: 8) {
@@ -140,6 +149,14 @@ struct SettingsView: View {
 
     private func deleteAllCustomServices() {
         configs.removeAll { !defaultKeySet.contains(key(for: $0)) }
+    }
+
+    private func selectCommonServices() {
+        let commonNames = Set(["http", "https", "ssh", "ftp", "smb", "rdp", "vnc"])
+        for index in configs.indices {
+            let name = configs[index].name.lowercased()
+            configs[index].isEnabled = commonNames.contains(name)
+        }
     }
 
     private var defaultKeySet: Set<String> {
