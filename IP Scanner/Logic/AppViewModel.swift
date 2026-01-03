@@ -25,6 +25,7 @@ struct IPScanResult: Identifiable, Sendable {
     let id = UUID()
     let ipAddress: String
     var hostname: String?
+    var macAddress: String?
     var isAlive: Bool
     var openServices: [Service]
     var servicesSummary: String
@@ -306,9 +307,11 @@ private enum Scanner {
         let isAlive = await checkAlive(ipString, discoveryPorts: discoveryPorts)
         var openServices: [Service] = []
         var hostname: String? = nil
+        var macAddress: String? = nil
 
         if isAlive {
             hostname = await resolveHostname(ipString, bonjourCache: bonjourCache)
+            macAddress = await resolveMacAddress(ipString)
             for service in servicePorts {
                 if Task.isCancelled { break }
                 let status = await checkPortStatus(
@@ -329,6 +332,7 @@ private enum Scanner {
         return IPScanResult(
             ipAddress: ipString,
             hostname: hostname,
+            macAddress: macAddress,
             isAlive: isAlive,
             openServices: openServices,
             servicesSummary: summary
@@ -453,6 +457,47 @@ private enum Scanner {
             return reverse
         }
         return await bonjourCache.hostname(for: ip)
+    }
+
+    private static func resolveMacAddress(_ ip: String) async -> String? {
+        let output = await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
+            DispatchQueue.global(qos: .utility).async {
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/usr/sbin/arp")
+                process.arguments = ["-n", ip]
+
+                let pipe = Pipe()
+                process.standardOutput = pipe
+                process.standardError = pipe
+
+                do {
+                    try process.run()
+                } catch {
+                    continuation.resume(returning: nil)
+                    return
+                }
+
+                process.waitUntilExit()
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                let output = String(decoding: data, as: UTF8.self)
+                continuation.resume(returning: output)
+            }
+        }
+        guard let output else { return nil }
+        return parseMacAddress(from: output)
+    }
+
+    private static func parseMacAddress(from output: String) -> String? {
+        let pattern = "([0-9a-fA-F]{1,2}:){5}[0-9a-fA-F]{1,2}"
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            return nil
+        }
+        let range = NSRange(output.startIndex..<output.endIndex, in: output)
+        guard let match = regex.firstMatch(in: output, range: range),
+              let matchRange = Range(match.range, in: output) else {
+            return nil
+        }
+        return String(output[matchRange]).lowercased()
     }
 
     private static func icmpPing(_ ip: String, timeout: TimeInterval) async -> Bool {

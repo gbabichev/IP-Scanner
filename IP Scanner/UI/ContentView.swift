@@ -243,6 +243,11 @@ struct ContentView: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
             }
+            TableColumn("MAC") { result in
+                Text(result.macAddress ?? "")
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
             TableColumn("Status") { result in
                 Text(result.isAlive ? "Alive" : "No response")
                     .foregroundStyle(result.isAlive ? .green : .secondary)
