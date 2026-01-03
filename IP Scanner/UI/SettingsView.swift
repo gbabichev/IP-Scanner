@@ -61,6 +61,24 @@ struct SettingsView: View {
             }
 
             HStack(spacing: 8) {
+                Button("Uncheck All") {
+                    setAllServicesEnabled(false)
+                }
+                .buttonStyle(.bordered)
+
+                Button("Check All") {
+                    setAllServicesEnabled(true)
+                }
+                .buttonStyle(.bordered)
+
+                Button("Delete All Custom Services") {
+                    deleteAllCustomServices()
+                }
+                .buttonStyle(.bordered)
+                .tint(.red)
+            }
+
+            HStack(spacing: 8) {
                 TextField("Service name", text: $newServiceName)
                     .textFieldStyle(.roundedBorder)
                 TextField("Port", text: $newServicePort)
@@ -112,6 +130,16 @@ struct SettingsView: View {
 
     private func removeService(at index: Int) {
         configs.remove(at: index)
+    }
+
+    private func setAllServicesEnabled(_ isEnabled: Bool) {
+        for index in configs.indices {
+            configs[index].isEnabled = isEnabled
+        }
+    }
+
+    private func deleteAllCustomServices() {
+        configs.removeAll { !defaultKeySet.contains(key(for: $0)) }
     }
 
     private var defaultKeySet: Set<String> {

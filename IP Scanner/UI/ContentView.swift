@@ -256,7 +256,7 @@ struct ContentView: View {
     }
 
     private var settingsToolbarItem: some ToolbarContent {
-        ToolbarItem(placement: .automatic) {
+        ToolbarItem(placement: .navigation) {
             Button {
                 isSettingsPresented = true
             } label: {
