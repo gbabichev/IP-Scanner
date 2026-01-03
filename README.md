@@ -20,7 +20,7 @@ macOS app for scanning IP ranges, resolving hostnames, and reporting open servic
 ## Services Export
 Custom services can be exported from the Services menu, and custom service sets can be imported as JSON.
 
-Example JSON schema (each entry in the array is a service):
+JSON schema (each entry in the array is a service):
 ```json
 [
   {
@@ -34,7 +34,7 @@ Example JSON schema (each entry in the array is a service):
 
 Notes:
 - `name` is a human-friendly label.
-- `port` is the TCP port number.
+- `port` is the port number.
 - `transport` is `tcp` or `udp`.
 - `isEnabled` controls whether the service is used during scans.
 

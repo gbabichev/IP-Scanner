@@ -94,7 +94,7 @@ struct SettingsView: View {
                 TextField("Port", text: $newServicePort)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 80)
-                Picker("Protocol", selection: $newServiceTransport) {
+                Picker("", selection: $newServiceTransport) {
                     ForEach(ServiceTransport.allCases, id: \.self) { transport in
                         Text(transport.rawValue.uppercased())
                             .tag(transport)
