@@ -3,6 +3,9 @@
 //  IP Scanner
 //
 //  Created by George Babichev on 1/2/26.
+//  App entry point and command wiring.
+//  Sets up the main window scene, About sheet, and menu commands.
+//  Owns the shared ServicesActionsModel used by the Services menu.
 //
 
 import SwiftUI

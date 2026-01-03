@@ -1,19 +1,6 @@
 {
   "fill" : {
-    "linear-gradient" : [
-      "extended-gray:1.00000,1.00000",
-      "extended-gray:0.75000,1.00000"
-    ],
-    "orientation" : {
-      "start" : {
-        "x" : 0.5,
-        "y" : 0
-      },
-      "stop" : {
-        "x" : 0.5,
-        "y" : 0.7
-      }
-    }
+    "solid" : "display-p3:0.19981,0.72264,0.28376,1.00000"
   },
   "groups" : [
     {
@@ -22,10 +9,10 @@
           "image-name" : "IPScan.png",
           "name" : "IPScan",
           "position" : {
-            "scale" : 1,
+            "scale" : 1.1,
             "translation-in-points" : [
-              44.265625,
-              16.5
+              0,
+              40.5859375
             ]
           }
         }
@@ -36,7 +23,7 @@
       },
       "translucency" : {
         "enabled" : true,
-        "value" : 0.2
+        "value" : 0.1
       }
     }
   ],

@@ -3,6 +3,9 @@
 //  IP Scanner
 //
 //  Created by George Babichev on 1/2/26.
+//  Resolves hostnames using Bonjour and caches results during scans.
+//  Uses NetServiceBrowser to find services and resolve hostnames to IPs.
+//  The BonjourCache actor prevents repeated resolves for the same IP.
 //
 
 import Foundation

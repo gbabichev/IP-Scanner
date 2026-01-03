@@ -3,9 +3,9 @@
 //  IP Scanner
 //
 //  Consolidated services support types:
-//  - ServicesActionsModel bridges the Services menu to view actions.
-//  - ServiceConfig defines storage/merge/export for service configs.
-//  - ServiceConfigDocument handles file import/export for JSON.
+//  - ServicesActionsModel bridges the Services menu to view actions across focus changes.
+//  - ServiceConfig handles default/custom configs, JSON encoding, and merge rules.
+//  - ServiceConfigDocument provides FileDocument import/export for services JSON.
 //
 
 import Combine
@@ -36,6 +36,27 @@ struct ServiceConfig: Identifiable, Codable, Hashable, Sendable {
         self.isEnabled = isEnabled
     }
 
+    private enum CodingKeys: String, CodingKey {
+        case name
+        case port
+        case isEnabled
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = try container.decode(String.self, forKey: .name)
+        port = try container.decode(Int.self, forKey: .port)
+        isEnabled = try container.decode(Bool.self, forKey: .isEnabled)
+        id = UUID()
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(name, forKey: .name)
+        try container.encode(port, forKey: .port)
+        try container.encode(isEnabled, forKey: .isEnabled)
+    }
+
     static func defaultConfigs() -> [ServiceConfig] {
         ServiceCatalog.servicePorts.map { service in
             ServiceConfig(name: service.name, port: Int(service.port), isEnabled: true)
@@ -63,7 +84,7 @@ struct ServiceConfig: Identifiable, Codable, Hashable, Sendable {
 
     static func exportCustomJSON(from json: String) -> String {
         let custom = customConfigs(from: json)
-        return encode(custom)
+        return encodePretty(custom)
     }
 
     static func mergeCustom(into existingJSON: String, imported: [ServiceConfig]) -> String {
@@ -94,6 +115,17 @@ struct ServiceConfig: Identifiable, Codable, Hashable, Sendable {
     static func encode(_ configs: [ServiceConfig]) -> String {
         do {
             let data = try JSONEncoder().encode(configs)
+            return String(decoding: data, as: UTF8.self)
+        } catch {
+            return ""
+        }
+    }
+
+    static func encodePretty(_ configs: [ServiceConfig]) -> String {
+        do {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            let data = try encoder.encode(configs)
             return String(decoding: data, as: UTF8.self)
         } catch {
             return ""

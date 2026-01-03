@@ -3,6 +3,8 @@
 //  IP Scanner
 //
 //  Created by George Babichev on 1/2/26.
+//  Focused menu action wrapper for exporting scan results.
+//  This is attached to the focused view so the File menu can enable/disable CSV export.
 //
 
 import SwiftUI

@@ -3,6 +3,9 @@
 //  IP Scanner
 //
 //  Created by George Babichev on 1/2/26.
+//  Coordinates scanning workflow and UI state.
+//  Owns scan lifecycle, progress/status messages, and result filtering.
+//  Provides derived data like CSV export content for the UI layer.
 //
 
 import Foundation

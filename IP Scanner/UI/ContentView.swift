@@ -3,6 +3,9 @@
 //  IP Scanner
 //
 //  Created by George Babichev on 1/2/26.
+//  Main scanning UI and primary app interaction surface.
+//  Handles input range, scan controls, filters, and results table.
+//  Owns file import/export state and settings sheet presentation.
 //
 
 import SwiftUI

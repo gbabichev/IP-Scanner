@@ -3,6 +3,8 @@
 //  IP Scanner
 //
 //  Created by George Babichev on 1/2/26.
+//  Defines default well-known services and port catalog entries.
+//  This list feeds the default service configs and UI display.
 //
 
 import Foundation

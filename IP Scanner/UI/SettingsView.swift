@@ -3,6 +3,8 @@
 //  IP Scanner
 //
 //  Created by George Babichev on 1/2/26.
+//  Settings UI for managing default and custom service configurations.
+//  Edits service enablement, adds/removes custom entries, and persists to AppStorage.
 //
 
 import SwiftUI

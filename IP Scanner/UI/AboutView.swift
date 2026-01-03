@@ -2,6 +2,8 @@
 //  AboutView.swift
 //  Screen Snip
 //
+//  About panel content and live app icon preview.
+//  Shows the current app icon and descriptive text for the app.
 
 
 import SwiftUI

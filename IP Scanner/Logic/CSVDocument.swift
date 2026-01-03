@@ -3,6 +3,8 @@
 //  IP Scanner
 //
 //  Created by George Babichev on 1/2/26.
+//  FileDocument wrapper for exporting scan results as CSV.
+//  Encodes the exported string into a FileWrapper for the file exporter.
 //
 
 import SwiftUI
