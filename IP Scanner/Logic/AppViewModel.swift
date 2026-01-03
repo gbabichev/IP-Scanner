@@ -31,6 +31,20 @@ struct IPScanResult: Identifiable, Sendable {
     var servicesSummary: String
 }
 
+extension IPScanResult {
+    var hostnameSortKey: String {
+        hostname ?? ""
+    }
+
+    var macSortKey: String {
+        macAddress ?? ""
+    }
+
+    var statusSortKey: String {
+        isAlive ? "Alive" : "No response"
+    }
+}
+
 @MainActor
 final class AppViewModel: ObservableObject {
     @Published var inputRange: String = "192.168.20.1-192.168.20.5"

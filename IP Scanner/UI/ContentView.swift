@@ -26,6 +26,7 @@ struct ContentView: View {
     @State private var pendingServicesImport = false
     @State private var hideNoResponse = false
     @State private var onlyWithServices = false
+    @State private var sortOrder: [KeyPathComparator<IPScanResult>] = []
 
     private var filteredResults: [IPScanResult] {
         viewModel.results.filter { result in
@@ -234,31 +235,73 @@ struct ContentView: View {
     }
 
     private var resultsTable: some View {
-        Table(filteredResults) {
-            TableColumn("IP") { result in
-                Text(result.ipAddress)
+        ZStack {
+            Table(sortedResults, sortOrder: $sortOrder) {
+                TableColumn("IP", value: \.ipAddress) { result in
+                    Text(result.ipAddress)
+                        .textSelection(.enabled)
+                }
+                TableColumn("Hostname", value: \.hostnameSortKey) { result in
+                    Text(result.hostname ?? "")
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .textSelection(.enabled)
+                }
+                TableColumn("MAC", value: \.macSortKey) { result in
+                    Text(result.macAddress ?? "")
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .textSelection(.enabled)
+                }
+                TableColumn("Status", value: \.statusSortKey) { result in
+                    Text(result.isAlive ? "Alive" : "No response")
+                        .foregroundStyle(result.isAlive ? .green : .secondary)
+                        .textSelection(.enabled)
+                }
+                TableColumn("Services", value: \.servicesSummary) { result in
+                    Text(result.servicesSummary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .textSelection(.enabled)
+                }
             }
-            TableColumn("Hostname") { result in
-                Text(result.hostname ?? "")
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-            }
-            TableColumn("MAC") { result in
-                Text(result.macAddress ?? "")
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-            }
-            TableColumn("Status") { result in
-                Text(result.isAlive ? "Alive" : "No response")
-                    .foregroundStyle(result.isAlive ? .green : .secondary)
-            }
-            TableColumn("Services") { result in
-                Text(result.servicesSummary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+            .tableStyle(.inset)
+
+            if shouldShowEmptyState {
+                emptyStateView
             }
         }
-        .tableStyle(.inset)
+    }
+
+    private var sortedResults: [IPScanResult] {
+        if sortOrder.isEmpty {
+            return filteredResults.sorted { $0.ipAddress < $1.ipAddress }
+        }
+        return filteredResults.sorted(using: sortOrder)
+    }
+
+    private var shouldShowEmptyState: Bool {
+        sortedResults.isEmpty
+    }
+
+    @ViewBuilder
+    private var emptyStateView: some View {
+        VStack(spacing: 8) {
+            if viewModel.results.isEmpty {
+                Text("No scan results yet.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("No results match the current filters.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Button("Reset Filters") {
+                    hideNoResponse = false
+                    onlyWithServices = false
+                }
+                .buttonStyle(.bordered)
+            }
+        }
     }
 
     private var settingsToolbarItem: some ToolbarContent {
