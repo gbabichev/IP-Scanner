@@ -10,7 +10,6 @@
 
 import SwiftUI
 import UniformTypeIdentifiers
-import Combine
 #if os(macOS)
 import AppKit
 #endif
@@ -76,7 +75,7 @@ struct ContentView: View {
             isRangeFocused = false
             updateSortedResults()
         }
-        .onReceive(viewModel.$results) { _ in
+        .onChange(of: viewModel.results.count) { _, _ in
             updateSortedResults()
         }
         .onChange(of: hideNoResponse) { _, _ in
@@ -87,6 +86,9 @@ struct ContentView: View {
         }
         .onChange(of: storedRange) { _, newValue in
             viewModel.inputRange = newValue
+        }
+        .onChange(of: viewModel.progressText) { _, _ in
+            updateDoneMessage()
         }
         .onChange(of: viewModel.inputRange) { _, newValue in
             if storedRange != newValue {
@@ -357,6 +359,13 @@ struct ContentView: View {
         } else {
             sortedResults = filtered.sorted(using: sortOrder)
         }
+        updateDoneMessage()
+    }
+
+    private func updateDoneMessage() {
+        guard !viewModel.isScanning else { return }
+        guard viewModel.progressText.hasPrefix("Done") else { return }
+        viewModel.progressText = "Done. Showing \(sortedResults.count)/\(viewModel.results.count) IPs."
     }
 
     private var shouldShowEmptyState: Bool {
