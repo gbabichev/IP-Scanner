@@ -11,6 +11,9 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import Combine
+#if os(macOS)
+import AppKit
+#endif
 
 struct ContentView: View {
     @StateObject private var viewModel = AppViewModel()
@@ -32,6 +35,8 @@ struct ContentView: View {
     @State private var isLargeRangeAlertPresented = false
     @State private var pendingRangeCount: Int = 0
     @State private var sortedResults: [IPScanResult] = []
+    @State private var toastMessage: String = ""
+    @State private var isToastVisible = false
     private var sortOrderBinding: Binding<[KeyPathComparator<IPScanResult>]> {
         Binding(
             get: { sortOrder },
@@ -57,6 +62,9 @@ struct ContentView: View {
         .overlay(alignment: .bottomTrailing) {
             BetaTag()
                 .padding(12)
+        }
+        .overlay(alignment: .topLeading) {
+            toastView
         }
         .onTapGesture {
             isRangeFocused = false
@@ -273,29 +281,57 @@ struct ContentView: View {
                 TableColumn("IP", value: \.ipSortKey) { result in
                     Text(result.ipAddress)
                         // .textSelection(.enabled)
+                        .contextMenu {
+                            Button("Copy") {
+                                copyToClipboard(result.ipAddress, label: "IP copied")
+                            }
+                        }
                 }
                 TableColumn("Hostname", value: \.hostnameSortKey) { result in
                     Text(result.hostname ?? "")
                         .lineLimit(1)
                         .truncationMode(.tail)
                         // .textSelection(.enabled)
+                        .contextMenu {
+                            Button("Copy") {
+                                copyToClipboard(result.hostname ?? "", label: "Hostname copied")
+                            }
+                            .disabled(result.hostname?.isEmpty ?? true)
+                        }
                 }
                 TableColumn("MAC", value: \.macSortKey) { result in
                     Text(result.macAddress ?? "")
                         .lineLimit(1)
                         .truncationMode(.tail)
                         // .textSelection(.enabled)
+                        .contextMenu {
+                            Button("Copy") {
+                                copyToClipboard(result.macAddress ?? "", label: "MAC copied")
+                            }
+                            .disabled(result.macAddress?.isEmpty ?? true)
+                        }
                 }
                 TableColumn("Status", value: \.statusSortKey) { result in
                     Text(result.isAlive ? "Alive" : "No response")
                         .foregroundStyle(result.isAlive ? .green : .secondary)
                         // .textSelection(.enabled)
+                        .contextMenu {
+                            Button("Copy") {
+                                copyToClipboard(result.isAlive ? "Alive" : "No response", label: "Status copied")
+                            }
+                        }
                 }
                 TableColumn("Services", value: \.servicesSummary) { result in
                     Text(result.servicesSummary)
                         .lineLimit(1)
                         .truncationMode(.tail)
                         // .textSelection(.enabled)
+                        .contextMenu {
+                            Button("Copy") {
+                                copyToClipboard(result.servicesSummary, label: "Services copied")
+                            }
+                            .disabled(result.servicesSummary.isEmpty)
+                        }
                 }
             }
             .tableStyle(.inset)
@@ -398,6 +434,44 @@ struct ContentView: View {
             isLargeRangeAlertPresented = true
         } else {
             viewModel.startScan()
+        }
+    }
+
+    @ViewBuilder
+    private var toastView: some View {
+        if isToastVisible {
+            Text(toastMessage)
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 14)
+                .background(.thinMaterial, in: Capsule())
+                .shadow(radius: 4, x: 0, y: 2)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .padding(.top, 12)
+                .padding(.leading, 12)
+        }
+    }
+
+    private func copyToClipboard(_ value: String, label: String) {
+        guard !value.isEmpty else { return }
+        #if os(macOS)
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(value, forType: .string)
+        #endif
+        showToast(label)
+    }
+
+    private func showToast(_ message: String) {
+        toastMessage = message
+        withAnimation(.easeOut(duration: 0.15)) {
+            isToastVisible = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) {
+            withAnimation(.easeIn(duration: 0.2)) {
+                isToastVisible = false
+            }
         }
     }
 }
