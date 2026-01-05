@@ -10,6 +10,7 @@
 
 import SwiftUI
 import UniformTypeIdentifiers
+import Combine
 
 struct ContentView: View {
     @StateObject private var viewModel = AppViewModel()
@@ -30,17 +31,15 @@ struct ContentView: View {
     @FocusState private var isRangeFocused: Bool
     @State private var isLargeRangeAlertPresented = false
     @State private var pendingRangeCount: Int = 0
-
-    private var filteredResults: [IPScanResult] {
-        viewModel.results.filter { result in
-            if hideNoResponse && !result.isAlive {
-                return false
+    @State private var sortedResults: [IPScanResult] = []
+    private var sortOrderBinding: Binding<[KeyPathComparator<IPScanResult>]> {
+        Binding(
+            get: { sortOrder },
+            set: { newValue in
+                sortOrder = newValue
+                updateSortedResults()
             }
-            if onlyWithServices && result.openServices.isEmpty {
-                return false
-            }
-            return true
-        }
+        )
     }
 
     var body: some View {
@@ -67,6 +66,16 @@ struct ContentView: View {
             servicesActions.export = { beginExportServices() }
             servicesActions.import = { beginImportServices() }
             isRangeFocused = false
+            updateSortedResults()
+        }
+        .onReceive(viewModel.$results) { _ in
+            updateSortedResults()
+        }
+        .onChange(of: hideNoResponse) { _, _ in
+            updateSortedResults()
+        }
+        .onChange(of: onlyWithServices) { _, _ in
+            updateSortedResults()
         }
         .onChange(of: storedRange) { _, newValue in
             viewModel.inputRange = newValue
@@ -260,33 +269,33 @@ struct ContentView: View {
 
     private var resultsTable: some View {
         ZStack {
-            Table(sortedResults, sortOrder: $sortOrder) {
+            Table(sortedResults, sortOrder: sortOrderBinding) {
                 TableColumn("IP", value: \.ipSortKey) { result in
                     Text(result.ipAddress)
-                        .textSelection(.enabled)
+                        // .textSelection(.enabled)
                 }
                 TableColumn("Hostname", value: \.hostnameSortKey) { result in
                     Text(result.hostname ?? "")
                         .lineLimit(1)
                         .truncationMode(.tail)
-                        .textSelection(.enabled)
+                        // .textSelection(.enabled)
                 }
                 TableColumn("MAC", value: \.macSortKey) { result in
                     Text(result.macAddress ?? "")
                         .lineLimit(1)
                         .truncationMode(.tail)
-                        .textSelection(.enabled)
+                        // .textSelection(.enabled)
                 }
                 TableColumn("Status", value: \.statusSortKey) { result in
                     Text(result.isAlive ? "Alive" : "No response")
                         .foregroundStyle(result.isAlive ? .green : .secondary)
-                        .textSelection(.enabled)
+                        // .textSelection(.enabled)
                 }
                 TableColumn("Services", value: \.servicesSummary) { result in
                     Text(result.servicesSummary)
                         .lineLimit(1)
                         .truncationMode(.tail)
-                        .textSelection(.enabled)
+                        // .textSelection(.enabled)
                 }
             }
             .tableStyle(.inset)
@@ -297,11 +306,21 @@ struct ContentView: View {
         }
     }
 
-    private var sortedResults: [IPScanResult] {
-        if sortOrder.isEmpty {
-            return filteredResults.sorted { $0.ipSortKey < $1.ipSortKey }
+    private func updateSortedResults() {
+        let filtered = viewModel.results.filter { result in
+            if hideNoResponse && !result.isAlive {
+                return false
+            }
+            if onlyWithServices && result.openServices.isEmpty {
+                return false
+            }
+            return true
         }
-        return filteredResults.sorted(using: sortOrder)
+        if sortOrder.isEmpty {
+            sortedResults = filtered.sorted { $0.ipSortKey < $1.ipSortKey }
+        } else {
+            sortedResults = filtered.sorted(using: sortOrder)
+        }
     }
 
     private var shouldShowEmptyState: Bool {

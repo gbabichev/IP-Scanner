@@ -24,6 +24,7 @@ struct Service: Identifiable, Hashable, Sendable {
 struct IPScanResult: Identifiable, Sendable {
     let id = UUID()
     let ipAddress: String
+    let ipValue: UInt32
     var hostname: String?
     var macAddress: String?
     var isAlive: Bool
@@ -33,14 +34,7 @@ struct IPScanResult: Identifiable, Sendable {
 
 extension IPScanResult {
     var ipSortKey: UInt32 {
-        let parts = ipAddress.split(separator: ".")
-        guard parts.count == 4 else { return UInt32.max }
-        var result: UInt32 = 0
-        for part in parts {
-            guard let byte = UInt8(part) else { return UInt32.max }
-            result = (result << 8) | UInt32(byte)
-        }
-        return result
+        ipValue
     }
 
     var hostnameSortKey: String {
@@ -383,6 +377,7 @@ private enum Scanner {
         }.joined(separator: ", ")
         return IPScanResult(
             ipAddress: ipString,
+            ipValue: ipValue,
             hostname: hostname,
             macAddress: macAddress,
             isAlive: isAlive,
