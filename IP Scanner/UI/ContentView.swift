@@ -41,7 +41,6 @@ struct ContentView: View {
             get: { sortOrder },
             set: { newValue in
                 sortOrder = newValue
-                updateSortedResults()
             }
         )
     }
@@ -76,6 +75,9 @@ struct ContentView: View {
             updateSortedResults()
         }
         .onChange(of: viewModel.results.count) { _, _ in
+            updateSortedResults()
+        }
+        .onChange(of: sortOrder) { _, _ in
             updateSortedResults()
         }
         .onChange(of: hideNoResponse) { _, _ in
