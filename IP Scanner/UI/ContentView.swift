@@ -50,9 +50,13 @@ struct ContentView: View {
             filterButtons
             resultsTable
         }
+        
         .padding(16)
         .frame(minWidth: 520, minHeight: 420)
-        .contentShape(Rectangle())
+        .overlay(alignment: .bottomTrailing) {
+            BetaTag()
+                .padding(12)
+        }
         .onTapGesture {
             isRangeFocused = false
         }
