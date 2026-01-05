@@ -18,6 +18,7 @@ struct ContentView: View {
     @StateObject private var viewModel = AppViewModel()
     @EnvironmentObject private var servicesActions: ServicesActionsModel
     @AppStorage("inputRange") private var storedRange: String = "192.168.1.1-192.168.1.15"
+    @State private var inputRangeText: String = ""
     @AppStorage("serviceConfigsJSON") private var serviceConfigsJSON: String = ServiceConfig.defaultJSON()
     @State private var exportDocument = CSVDocument(text: "")
     @State private var exportServicesDocument = ServiceConfigDocument(json: "")
@@ -36,11 +37,21 @@ struct ContentView: View {
     @State private var sortedResults: [IPScanResult] = []
     @State private var toastMessage: String = ""
     @State private var isToastVisible = false
+    private var resultsSnapshot: ResultsTableSnapshot {
+        ResultsTableSnapshot(
+            results: sortedResults,
+            sortOrder: sortOrder,
+            isResultsEmpty: viewModel.results.isEmpty,
+            shouldShowEmptyState: shouldShowEmptyState
+        )
+    }
     private var sortOrderBinding: Binding<[KeyPathComparator<IPScanResult>]> {
         Binding(
             get: { sortOrder },
             set: { newValue in
+                guard sortOrder != newValue else { return }
                 sortOrder = newValue
+                updateSortedResults()
             }
         )
     }
@@ -69,6 +80,7 @@ struct ContentView: View {
         }
         .onAppear {
             viewModel.inputRange = storedRange
+            inputRangeText = storedRange
             servicesActions.export = { beginExportServices() }
             servicesActions.import = { beginImportServices() }
             isRangeFocused = false
@@ -77,22 +89,21 @@ struct ContentView: View {
         .onChange(of: viewModel.results.count) { _, _ in
             updateSortedResults()
         }
-        .onChange(of: sortOrder) { _, _ in
-            updateSortedResults()
-        }
         .onChange(of: hideNoResponse) { _, _ in
             updateSortedResults()
         }
         .onChange(of: onlyWithServices) { _, _ in
             updateSortedResults()
         }
-        .onChange(of: storedRange) { _, newValue in
-            viewModel.inputRange = newValue
+        .onChange(of: isRangeFocused) { _, newValue in
+            if !newValue {
+                commitRangeInput()
+            }
         }
         .onChange(of: viewModel.inputRange) { _, newValue in
-            if storedRange != newValue {
-                storedRange = newValue
-            }
+            guard inputRangeText != newValue else { return }
+            inputRangeText = newValue
+            storedRange = newValue
         }
         .onChange(of: isSettingsPresented) { _, newValue in
             guard !newValue else { return }
@@ -228,10 +239,11 @@ struct ContentView: View {
                 ProgressView()
                     .help("Scanning")
             }
-            TextField("192.168.1.1-192.168.1.5", text: $storedRange)
+            TextField("192.168.1.1-192.168.1.5", text: $inputRangeText)
                 .textFieldStyle(.roundedBorder)
                 .focused($isRangeFocused)
                 .onSubmit {
+                    commitRangeInput()
                     isRangeFocused = false
                 }
         }
@@ -286,70 +298,16 @@ struct ContentView: View {
     }
 
     private var resultsTable: some View {
-        ZStack {
-            Table(sortedResults, sortOrder: sortOrderBinding) {
-                TableColumn("IP", value: \.ipSortKey) { result in
-                    Text(result.ipAddress)
-                        // .textSelection(.enabled)
-                        .contextMenu {
-                            Button("Copy") {
-                                copyToClipboard(result.ipAddress, label: "IP copied")
-                            }
-                        }
-                }
-                TableColumn("Hostname", value: \.hostnameSortKey) { result in
-                    Text(result.hostname ?? "")
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        // .textSelection(.enabled)
-                        .contextMenu {
-                            Button("Copy") {
-                                copyToClipboard(result.hostname ?? "", label: "Hostname copied")
-                            }
-                            .disabled(result.hostname?.isEmpty ?? true)
-                        }
-                }
-                TableColumn("MAC", value: \.macSortKey) { result in
-                    Text(result.macAddress ?? "")
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        // .textSelection(.enabled)
-                        .contextMenu {
-                            Button("Copy") {
-                                copyToClipboard(result.macAddress ?? "", label: "MAC copied")
-                            }
-                            .disabled(result.macAddress?.isEmpty ?? true)
-                        }
-                }
-                TableColumn("Status", value: \.statusSortKey) { result in
-                    Text(result.isAlive ? "Alive" : "No response")
-                        .foregroundStyle(result.isAlive ? .green : .secondary)
-                        // .textSelection(.enabled)
-                        .contextMenu {
-                            Button("Copy") {
-                                copyToClipboard(result.isAlive ? "Alive" : "No response", label: "Status copied")
-                            }
-                        }
-                }
-                TableColumn("Services", value: \.servicesSummary) { result in
-                    Text(result.servicesSummary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        // .textSelection(.enabled)
-                        .contextMenu {
-                            Button("Copy") {
-                                copyToClipboard(result.servicesSummary, label: "Services copied")
-                            }
-                            .disabled(result.servicesSummary.isEmpty)
-                        }
-                }
-            }
-            .tableStyle(.inset)
-
-            if shouldShowEmptyState {
-                emptyStateView
-            }
-        }
+        ResultsTableView(
+            snapshot: resultsSnapshot,
+            results: sortedResults,
+            sortOrder: sortOrderBinding,
+            resetFilters: {
+                hideNoResponse = false
+                onlyWithServices = false
+            },
+            copyToClipboard: copyToClipboard
+        )
     }
 
     private func updateSortedResults() {
@@ -375,26 +333,6 @@ struct ContentView: View {
 
     private var shouldShowEmptyState: Bool {
         sortedResults.isEmpty
-    }
-
-    @ViewBuilder
-    private var emptyStateView: some View {
-        VStack(spacing: 8) {
-            if viewModel.results.isEmpty {
-                Text("No scan results yet.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            } else {
-                Text("No results match the current filters.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Button("Reset Filters") {
-                    hideNoResponse = false
-                    onlyWithServices = false
-                }
-                .buttonStyle(.bordered)
-            }
-        }
     }
 
     private var settingsToolbarItem: some ToolbarContent {
@@ -443,12 +381,19 @@ struct ContentView: View {
     }
 
     private func beginScan() {
-        if let count = viewModel.rangeCount(for: storedRange), count > 256 {
+        commitRangeInput()
+        if let count = viewModel.rangeCount(for: inputRangeText), count > 256 {
             pendingRangeCount = count
             isLargeRangeAlertPresented = true
         } else {
             viewModel.startScan()
         }
+    }
+
+    private func commitRangeInput() {
+        guard viewModel.inputRange != inputRangeText else { return }
+        viewModel.inputRange = inputRangeText
+        storedRange = inputRangeText
     }
 
     @ViewBuilder
@@ -485,6 +430,131 @@ struct ContentView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) {
             withAnimation(.easeIn(duration: 0.2)) {
                 isToastVisible = false
+            }
+        }
+    }
+}
+
+private struct ResultSignature: Equatable {
+    let id: UUID
+    let ipAddress: String
+    let hostname: String?
+    let macAddress: String?
+    let isAlive: Bool
+    let servicesSummary: String
+
+    init(result: IPScanResult) {
+        id = result.id
+        ipAddress = result.ipAddress
+        hostname = result.hostname
+        macAddress = result.macAddress
+        isAlive = result.isAlive
+        servicesSummary = result.servicesSummary
+    }
+}
+
+private struct ResultsTableSnapshot: Equatable {
+    let results: [ResultSignature]
+    let sortOrder: [KeyPathComparator<IPScanResult>]
+    let isResultsEmpty: Bool
+    let shouldShowEmptyState: Bool
+
+    init(
+        results: [IPScanResult],
+        sortOrder: [KeyPathComparator<IPScanResult>],
+        isResultsEmpty: Bool,
+        shouldShowEmptyState: Bool
+    ) {
+        self.results = results.map(ResultSignature.init)
+        self.sortOrder = sortOrder
+        self.isResultsEmpty = isResultsEmpty
+        self.shouldShowEmptyState = shouldShowEmptyState
+    }
+}
+
+private struct ResultsTableView: View, Equatable {
+    let snapshot: ResultsTableSnapshot
+    let results: [IPScanResult]
+    let sortOrder: Binding<[KeyPathComparator<IPScanResult>]>
+    let resetFilters: () -> Void
+    let copyToClipboard: (String, String) -> Void
+
+    static func == (lhs: ResultsTableView, rhs: ResultsTableView) -> Bool {
+        lhs.snapshot == rhs.snapshot
+    }
+
+    var body: some View {
+        ZStack {
+            Table(results, sortOrder: sortOrder) {
+                TableColumn("IP", value: \.ipSortKey) { result in
+                    Text(result.ipAddress)
+                        .contextMenu {
+                            Button("Copy") {
+                                copyToClipboard(result.ipAddress, "IP copied")
+                            }
+                        }
+                }
+                TableColumn("Hostname", value: \.hostnameSortKey) { result in
+                    Text(result.hostname ?? "")
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .contextMenu {
+                            Button("Copy") {
+                                copyToClipboard(result.hostname ?? "", "Hostname copied")
+                            }
+                            .disabled(result.hostname?.isEmpty ?? true)
+                        }
+                }
+                TableColumn("MAC", value: \.macSortKey) { result in
+                    Text(result.macAddress ?? "")
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .contextMenu {
+                            Button("Copy") {
+                                copyToClipboard(result.macAddress ?? "", "MAC copied")
+                            }
+                            .disabled(result.macAddress?.isEmpty ?? true)
+                        }
+                }
+                TableColumn("Status", value: \.statusSortKey) { result in
+                    Text(result.isAlive ? "Alive" : "No response")
+                        .foregroundStyle(result.isAlive ? .green : .secondary)
+                        .contextMenu {
+                            Button("Copy") {
+                                copyToClipboard(result.isAlive ? "Alive" : "No response", "Status copied")
+                            }
+                        }
+                }
+                TableColumn("Services", value: \.servicesSummary) { result in
+                    Text(result.servicesSummary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .contextMenu {
+                            Button("Copy") {
+                                copyToClipboard(result.servicesSummary, "Services copied")
+                            }
+                            .disabled(result.servicesSummary.isEmpty)
+                        }
+                }
+            }
+            .tableStyle(.inset)
+
+            if snapshot.shouldShowEmptyState {
+                VStack(spacing: 8) {
+                    if snapshot.isResultsEmpty {
+                        Text("No scan results yet.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("No results match the current filters.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Button("Reset Filters") {
+                            resetFilters()
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
             }
         }
     }
