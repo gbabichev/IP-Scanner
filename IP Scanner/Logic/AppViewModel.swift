@@ -151,7 +151,7 @@ final class AppViewModel: ObservableObject {
             await MainActor.run {
                 if !Task.isCancelled {
                     self.isScanning = false
-                    self.progressText = "Done"
+                    self.progressText = "IP Scan Complete"
                 }
             }
         }

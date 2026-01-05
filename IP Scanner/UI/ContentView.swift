@@ -87,9 +87,6 @@ struct ContentView: View {
         .onChange(of: storedRange) { _, newValue in
             viewModel.inputRange = newValue
         }
-        .onChange(of: viewModel.progressText) { _, _ in
-            updateDoneMessage()
-        }
         .onChange(of: viewModel.inputRange) { _, newValue in
             if storedRange != newValue {
                 storedRange = newValue
@@ -248,10 +245,19 @@ struct ContentView: View {
 
     @ViewBuilder
     private var progressView: some View {
-        if viewModel.isScanning || !viewModel.progressText.isEmpty {
-            Text(viewModel.progressText)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+        if viewModel.isScanning || !viewModel.progressText.isEmpty || shouldShowSummary {
+            VStack(alignment: .leading, spacing: 2) {
+                if viewModel.isScanning || !viewModel.progressText.isEmpty {
+                    Text(viewModel.progressText)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                if shouldShowSummary {
+                    Text("Showing \(sortedResults.count)/\(viewModel.results.count) IPs.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
     }
 
@@ -359,13 +365,10 @@ struct ContentView: View {
         } else {
             sortedResults = filtered.sorted(using: sortOrder)
         }
-        updateDoneMessage()
     }
 
-    private func updateDoneMessage() {
-        guard !viewModel.isScanning else { return }
-        guard viewModel.progressText.hasPrefix("Done") else { return }
-        viewModel.progressText = "Done. Showing \(sortedResults.count)/\(viewModel.results.count) IPs."
+    private var shouldShowSummary: Bool {
+        !viewModel.results.isEmpty
     }
 
     private var shouldShowEmptyState: Bool {
