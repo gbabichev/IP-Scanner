@@ -28,6 +28,8 @@ struct ContentView: View {
     @State private var onlyWithServices = false
     @State private var sortOrder: [KeyPathComparator<IPScanResult>] = []
     @FocusState private var isRangeFocused: Bool
+    @State private var isLargeRangeAlertPresented = false
+    @State private var pendingRangeCount: Int = 0
 
     private var filteredResults: [IPScanResult] {
         viewModel.results.filter { result in
@@ -125,6 +127,14 @@ struct ContentView: View {
         }
         .sheet(isPresented: $isSettingsPresented) {
             SettingsView()
+        }
+        .alert("Large range", isPresented: $isLargeRangeAlertPresented) {
+            Button("Cancel", role: .cancel) {}
+            Button("Continue") {
+                viewModel.startScan()
+            }
+        } message: {
+            Text("This range contains \(pendingRangeCount) addresses. Scanning a large range can take a while. Continue?")
         }
         .toolbar {
             settingsToolbarItem
@@ -354,7 +364,7 @@ struct ContentView: View {
                 if viewModel.isScanning {
                     viewModel.stopScan()
                 } else {
-                    viewModel.startScan()
+                    beginScan()
                 }
             } label: {
                 Image(systemName: viewModel.isScanning ? "stop.fill" : "play.fill")
@@ -363,5 +373,12 @@ struct ContentView: View {
         }
     }
 
-    
+    private func beginScan() {
+        if let count = viewModel.rangeCount(for: storedRange), count > 256 {
+            pendingRangeCount = count
+            isLargeRangeAlertPresented = true
+        } else {
+            viewModel.startScan()
+        }
+    }
 }

@@ -154,6 +154,24 @@ final class AppViewModel: ObservableObject {
         }
     }
 
+    func rangeCount(for input: String) -> Int? {
+        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        let parts = trimmed.split(separator: "-").map { String($0) }
+        if parts.count == 1 {
+            return ipv4ToUInt32(parts[0]) == nil ? nil : 1
+        }
+        if parts.count == 2 {
+            guard let start = ipv4ToUInt32(parts[0]),
+                  let end = ipv4ToUInt32(parts[1]),
+                  start <= end else { return nil }
+            let count = UInt64(end) - UInt64(start) + 1
+            return Int(count)
+        }
+        return nil
+    }
+
     func stopScan() {
         scanTask?.cancel()
         scanTask = nil
