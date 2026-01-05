@@ -61,13 +61,13 @@ struct IP_ScannerApp: App {
                 Button {
                     servicesActions.import?()
                 } label: {
-                    Label("Import Services…", systemImage: "square.and.arrow.down")
+                    Label("Import Custom Services", systemImage: "square.and.arrow.down")
                 }
 
                 Button {
                     servicesActions.export?()
                 } label: {
-                    Label("Export Custom Services…", systemImage: "square.and.arrow.up")
+                    Label("Export Custom Services", systemImage: "square.and.arrow.up")
                 }
             }
         }
