@@ -237,7 +237,7 @@ struct ContentView: View {
     private var resultsTable: some View {
         ZStack {
             Table(sortedResults, sortOrder: $sortOrder) {
-                TableColumn("IP", value: \.ipAddress) { result in
+                TableColumn("IP", value: \.ipSortKey) { result in
                     Text(result.ipAddress)
                         .textSelection(.enabled)
                 }
@@ -275,7 +275,7 @@ struct ContentView: View {
 
     private var sortedResults: [IPScanResult] {
         if sortOrder.isEmpty {
-            return filteredResults.sorted { $0.ipAddress < $1.ipAddress }
+            return filteredResults.sorted { $0.ipSortKey < $1.ipSortKey }
         }
         return filteredResults.sorted(using: sortOrder)
     }

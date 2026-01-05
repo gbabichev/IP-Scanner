@@ -32,6 +32,17 @@ struct IPScanResult: Identifiable, Sendable {
 }
 
 extension IPScanResult {
+    var ipSortKey: UInt32 {
+        let parts = ipAddress.split(separator: ".")
+        guard parts.count == 4 else { return UInt32.max }
+        var result: UInt32 = 0
+        for part in parts {
+            guard let byte = UInt8(part) else { return UInt32.max }
+            result = (result << 8) | UInt32(byte)
+        }
+        return result
+    }
+
     var hostnameSortKey: String {
         hostname ?? ""
     }
