@@ -102,7 +102,9 @@ final class AppViewModel: ObservableObject {
 
             var nextIndex = 0
             let progress = ScanProgress()
-            var resultMap: [Int: IPScanResult] = [:]
+            var orderedResults = Array<IPScanResult?>(repeating: nil, count: total)
+            var publishedResults: [IPScanResult] = []
+            var nextPublishIndex = 0
 
             await withTaskGroup(of: (Int, IPScanResult).self) { group in
                 func addNext() {
@@ -132,12 +134,19 @@ final class AppViewModel: ObservableObject {
                         break
                     }
 
-                    resultMap[index] = result
+                    orderedResults[index] = result
                     let completed = await progress.increment()
 
-                    let orderedResults = (0..<total).compactMap { resultMap[$0] }
+                    var appended: [IPScanResult] = []
+                    while nextPublishIndex < total, let value = orderedResults[nextPublishIndex] {
+                        appended.append(value)
+                        nextPublishIndex += 1
+                    }
+                    if !appended.isEmpty {
+                        publishedResults.append(contentsOf: appended)
+                    }
                     await MainActor.run {
-                        self.results = orderedResults
+                        self.results = publishedResults
                         self.progressText = "Completed \(completed)/\(total)"
                     }
 
