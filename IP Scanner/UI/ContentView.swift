@@ -27,6 +27,7 @@ struct ContentView: View {
     @State private var hideNoResponse = false
     @State private var onlyWithServices = false
     @State private var sortOrder: [KeyPathComparator<IPScanResult>] = []
+    @FocusState private var isRangeFocused: Bool
 
     private var filteredResults: [IPScanResult] {
         viewModel.results.filter { result in
@@ -51,10 +52,15 @@ struct ContentView: View {
         }
         .padding(16)
         .frame(minWidth: 520, minHeight: 420)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            isRangeFocused = false
+        }
         .onAppear {
             viewModel.inputRange = storedRange
             servicesActions.export = { beginExportServices() }
             servicesActions.import = { beginImportServices() }
+            isRangeFocused = false
         }
         .onChange(of: storedRange) { _, newValue in
             viewModel.inputRange = newValue
@@ -192,6 +198,10 @@ struct ContentView: View {
             }
             TextField("192.168.1.1-192.168.1.5", text: $storedRange)
                 .textFieldStyle(.roundedBorder)
+                .focused($isRangeFocused)
+                .onSubmit {
+                    isRangeFocused = false
+                }
         }
     }
 
