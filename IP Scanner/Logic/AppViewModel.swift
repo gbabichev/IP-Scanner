@@ -328,7 +328,7 @@ final class AppViewModel: ObservableObject {
     }
 
     func csvString() -> String {
-        let header = ["IP", "Hostname", "Alive", "Services"]
+        let header = ["IP", "Hostname", "MAC", "Alive", "Services"]
         var lines: [String] = [csvLine(header)]
 
         for result in results {
@@ -336,6 +336,7 @@ final class AppViewModel: ObservableObject {
             let row = [
                 result.ipAddress,
                 result.hostname ?? "",
+                result.macAddress ?? "",
                 result.isAlive ? "yes" : "no",
                 services
             ]

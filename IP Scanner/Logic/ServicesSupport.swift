@@ -87,6 +87,11 @@ struct ServiceConfig: Identifiable, Codable, Hashable, Sendable {
         return encodePretty(custom)
     }
 
+    static func exportAllJSON(from json: String) -> String {
+        let configs = decode(from: json)
+        return encodePretty(configs)
+    }
+
     static func mergeCustom(into existingJSON: String, imported: [ServiceConfig]) -> String {
         let defaults = defaultConfigs()
         let existingAll = decode(from: existingJSON)

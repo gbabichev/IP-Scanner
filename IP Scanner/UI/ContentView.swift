@@ -75,7 +75,7 @@ struct ContentView: View {
             BetaTag()
                 .padding(12)
         }
-        .overlay(alignment: .topLeading) {
+        .overlay(alignment: .top) {
             toastView
         }
         .onTapGesture {
@@ -136,7 +136,8 @@ struct ContentView: View {
             defaultFilename: "ip-scanner-services"
         ) { result in
             if case .success(let url) = result {
-                viewModel.statusMessage = "Exported to \(url.lastPathComponent)"
+                viewModel.statusMessage = ""
+                showToast("Exported to \(url.lastPathComponent)")
             }
             isExportingServices = false
         }
@@ -190,9 +191,14 @@ struct ContentView: View {
             let csv = viewModel.csvString()
             do {
                 try csv.write(to: url, atomically: true, encoding: .utf8)
-                viewModel.statusMessage = "Exported to \(url.lastPathComponent)"
+                DispatchQueue.main.async {
+                    viewModel.statusMessage = ""
+                    showToast("Exported to \(url.lastPathComponent)")
+                }
             } catch {
-                viewModel.statusMessage = "Export failed."
+                DispatchQueue.main.async {
+                    viewModel.statusMessage = "Export failed."
+                }
             }
         }
 
@@ -215,7 +221,7 @@ struct ContentView: View {
     }
 
     private func performExportServices() {
-        let json = ServiceConfig.exportCustomJSON(from: serviceConfigsJSON)
+        let json = ServiceConfig.exportAllJSON(from: serviceConfigsJSON)
         exportServicesDocument = ServiceConfigDocument(json: json)
         isExportingServices = false
         DispatchQueue.main.async {
@@ -241,7 +247,8 @@ struct ContentView: View {
                 return
             }
             serviceConfigsJSON = ServiceConfig.mergeCustom(into: serviceConfigsJSON, imported: imported)
-            viewModel.statusMessage = "Services imported."
+            viewModel.statusMessage = ""
+            showToast("Services imported.")
         } catch {
             viewModel.statusMessage = "Import failed."
         }
@@ -476,14 +483,13 @@ struct ContentView: View {
         if isToastVisible {
             Text(toastMessage)
                 .font(.subheadline)
-                .foregroundStyle(.primary)
+                .foregroundStyle(.white)
                 .padding(.vertical, 8)
                 .padding(.horizontal, 14)
-                .background(.thinMaterial, in: Capsule())
+                .background(Color.black.opacity(0.9), in: Capsule())
                 .shadow(radius: 4, x: 0, y: 2)
                 .transition(.move(edge: .top).combined(with: .opacity))
                 .padding(.top, 12)
-                .padding(.leading, 12)
         }
     }
 
