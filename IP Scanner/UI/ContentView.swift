@@ -65,11 +65,6 @@ struct ContentView: View {
             headerView
             inputRow
             interfacePicker
-            if let ip = selectedInterface?.ipAddress {
-                Text("Your IP: \(ip)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
             statusView
             progressView
             filterButtons

@@ -1,6 +1,32 @@
-# IP Scanner
+<div align="center">
 
-macOS app for scanning IP ranges, resolving hostnames, and reporting open services.
+<picture>
+  <source srcset="Documentation/icon-dark.png" media="(prefers-color-scheme: dark)">
+  <source srcset="Documentation/icon-light.png" media="(prefers-color-scheme: light)">
+  <img src="Documentation/icon-light.png" alt="App Icon" width="100">
+</picture>
+<br/><br/>
+
+<!-- <h2></h2> -->
+<br>
+<p><b>IP Scanner is a macOS app for scanning IP ranges, resolving hostnames, and reporting open services.</p>
+
+</div>
+
+<p align="center">
+    <a href="Documentation/App1.png"><img src="Documentation/App1.png" width="30%"></a>
+</p>
+
+
+
+
+
+
+
+
+
+
+
 
 ## Features
 - Scan a single IP or range (for example `192.168.1.1-192.168.1.15`).
