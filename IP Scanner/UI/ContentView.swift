@@ -36,6 +36,9 @@ struct ContentView: View {
     @State private var isLargeRangeAlertPresented = false
     @State private var pendingRangeCount: Int = 0
     @State private var sortedResults: [IPScanResult] = []
+    @AppStorage("selectedInterfaceId") private var storedInterfaceId: String = ""
+    @State private var interfaces: [NetworkInterface] = []
+    @State private var selectedInterfaceId: String?
     @State private var toastMessage: String = ""
     @State private var isToastVisible = false
     private var resultsSnapshot: ResultsTableSnapshot {
@@ -61,6 +64,12 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 12) {
             headerView
             inputRow
+            interfacePicker
+            if let ip = selectedInterface?.ipAddress {
+                Text("Your IP: \(ip)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             statusView
             progressView
             filterButtons
@@ -86,8 +95,12 @@ struct ContentView: View {
             servicesActions.import = { beginImportServices() }
             exportActions.export = { beginExport() }
             exportActions.canExport = !viewModel.results.isEmpty
+            refreshInterfaces()
             isRangeFocused = false
             updateSortedResults()
+        }
+        .onChange(of: selectedInterfaceId) { _, newValue in
+            storedInterfaceId = newValue ?? ""
         }
         .onChange(of: viewModel.results.count) { _, newValue in
             exportActions.canExport = newValue > 0
@@ -248,6 +261,28 @@ struct ContentView: View {
     }
 
     @ViewBuilder
+    private var interfacePicker: some View {
+        if !interfaces.isEmpty {
+            HStack(spacing: 8) {
+                Picker("Interface", selection: $selectedInterfaceId) {
+                    ForEach(interfaces) { iface in
+                        Text("\(iface.name) • \(iface.ipAddress)")
+                            .tag(Optional(iface.id))
+                    }
+                }
+                .pickerStyle(.menu)
+                Button {
+                    refreshInterfaces()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .buttonStyle(.borderless)
+                .help("Refresh interfaces")
+            }
+        }
+    }
+
+    @ViewBuilder
     private var statusView: some View {
         if !viewModel.statusMessage.isEmpty {
             Text(viewModel.statusMessage)
@@ -354,7 +389,11 @@ struct ContentView: View {
     private var networkToolbarItem: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             Button {
-                viewModel.fillWithCurrentSubnet()
+                if let selectedInterface {
+                    viewModel.fillWithSubnet(for: selectedInterface)
+                } else {
+                    viewModel.fillWithCurrentSubnet()
+                }
             } label: {
                 Image(systemName: "network")
             }
@@ -399,6 +438,24 @@ struct ContentView: View {
         guard viewModel.inputRange != inputRangeText else { return }
         viewModel.inputRange = inputRangeText
         storedRange = inputRangeText
+    }
+
+    private func refreshInterfaces() {
+        interfaces = viewModel.networkInterfaces()
+        if interfaces.isEmpty {
+            selectedInterfaceId = nil
+            return
+        }
+        if let match = interfaces.first(where: { $0.id == storedInterfaceId }) {
+            selectedInterfaceId = match.id
+        } else {
+            selectedInterfaceId = interfaces.first?.id
+        }
+    }
+
+    private var selectedInterface: NetworkInterface? {
+        guard let selectedInterfaceId else { return nil }
+        return interfaces.first { $0.id == selectedInterfaceId }
     }
 
     @ViewBuilder

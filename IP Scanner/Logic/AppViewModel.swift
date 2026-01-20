@@ -14,6 +14,13 @@ import Darwin
 import Network
 import Combine
 
+struct NetworkInterface: Identifiable, Hashable, Sendable {
+    let id: String
+    let name: String
+    let ipAddress: String
+    let netmask: UInt32
+}
+
 struct Service: Identifiable, Hashable, Sendable {
     let id = UUID()
     let name: String
@@ -190,6 +197,58 @@ final class AppViewModel: ObservableObject {
         }
     }
 
+    func fillWithSubnet(for interface: NetworkInterface?) {
+        guard let interface, let range = subnetRange(for: interface) else {
+            statusMessage = "Unable to determine local subnet."
+            return
+        }
+        inputRange = range
+        statusMessage = ""
+    }
+
+    func networkInterfaces() -> [NetworkInterface] {
+        var ifaddrPointer: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&ifaddrPointer) == 0, let firstAddr = ifaddrPointer else {
+            return []
+        }
+        defer { freeifaddrs(firstAddr) }
+
+        var interfaces: [NetworkInterface] = []
+        var pointer: UnsafeMutablePointer<ifaddrs>? = firstAddr
+        while let addr = pointer?.pointee {
+            defer { pointer = addr.ifa_next }
+            let flags = addr.ifa_flags
+            if (flags & UInt32(IFF_UP)) == 0 || (flags & UInt32(IFF_LOOPBACK)) != 0 {
+                continue
+            }
+            guard let sockaddrPtr = addr.ifa_addr,
+                  sockaddrPtr.pointee.sa_family == sa_family_t(AF_INET),
+                  let netmaskPtr = addr.ifa_netmask else {
+                continue
+            }
+
+            let ipAddr = sockaddrPtr.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { $0.pointee.sin_addr }
+            let maskAddr = netmaskPtr.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { $0.pointee.sin_addr }
+            var buffer = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
+            var addrCopy = ipAddr
+            let result = inet_ntop(AF_INET, &addrCopy, &buffer, socklen_t(INET_ADDRSTRLEN))
+            guard result != nil else { continue }
+            let length = buffer.firstIndex(of: 0) ?? buffer.count
+            let bytes = buffer.prefix(length).map { UInt8(bitPattern: $0) }
+            let ip = String(decoding: bytes, as: UTF8.self)
+            if ip.hasPrefix("169.") {
+                continue
+            }
+
+            let mask = UInt32(bigEndian: maskAddr.s_addr)
+            let name = String(cString: addr.ifa_name)
+            let id = "\(name)-\(ip)"
+            interfaces.append(NetworkInterface(id: id, name: name, ipAddress: ip, netmask: mask))
+        }
+
+        return interfaces.sorted { $0.name < $1.name }
+    }
+
     private func triggerLocalNetworkAccess() {
         let sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
         guard sock >= 0 else { return }
@@ -250,48 +309,22 @@ final class AppViewModel: ObservableObject {
     }
 
     private func currentSubnetRange() -> String? {
-        var ifaddrPointer: UnsafeMutablePointer<ifaddrs>?
-        guard getifaddrs(&ifaddrPointer) == 0, let firstAddr = ifaddrPointer else {
+        subnetRange(for: networkInterfaces().first)
+    }
+
+    private func subnetRange(for interface: NetworkInterface?) -> String? {
+        guard let interface,
+              let ip = ipv4ToUInt32(interface.ipAddress) else {
             return nil
         }
-        defer { freeifaddrs(firstAddr) }
 
-        var pointer: UnsafeMutablePointer<ifaddrs>? = firstAddr
-        while let addr = pointer?.pointee {
-            defer { pointer = addr.ifa_next }
-            let flags = addr.ifa_flags
-            if (flags & UInt32(IFF_UP)) == 0 || (flags & UInt32(IFF_LOOPBACK)) != 0 {
-                continue
-            }
-            guard let sockaddrPtr = addr.ifa_addr,
-                  sockaddrPtr.pointee.sa_family == sa_family_t(AF_INET),
-                  let netmaskPtr = addr.ifa_netmask else {
-                continue
-            }
-
-            let ipAddr = sockaddrPtr.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { $0.pointee.sin_addr }
-            let maskAddr = netmaskPtr.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { $0.pointee.sin_addr }
-
-            let ip = UInt32(bigEndian: ipAddr.s_addr)
-            let mask = UInt32(bigEndian: maskAddr.s_addr)
-
-            let firstOctet = (ip >> 24) & 0xFF
-            if firstOctet == 169 {
-                continue
-            }
-
-            let network = ip & mask
-            let broadcast = network | (~mask)
-            let start = network + 1
-            let end = broadcast - 1
-            if start >= end {
-                continue
-            }
-
-            return "\(Scanner.uint32ToIPv4(start))-\(Scanner.uint32ToIPv4(end))"
-        }
-
-        return nil
+        let mask = interface.netmask
+        let network = ip & mask
+        let broadcast = network | (~mask)
+        let start = network + 1
+        let end = broadcast - 1
+        guard start < end else { return nil }
+        return "\(Scanner.uint32ToIPv4(start))-\(Scanner.uint32ToIPv4(end))"
     }
 
     func csvString() -> String {

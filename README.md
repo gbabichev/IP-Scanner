@@ -26,7 +26,6 @@ JSON schema (each entry in the array is a service):
   {
     "name": "My Service",
     "port": 1234,
-    "transport": "tcp",
     "isEnabled": true
   }
 ]
@@ -35,29 +34,26 @@ JSON schema (each entry in the array is a service):
 Notes:
 - `name` is a human-friendly label.
 - `port` is the port number.
-- `transport` is `tcp` or `udp`.
 - `isEnabled` controls whether the service is used during scans.
 
 ## Default Services
-The app ships with the following default services (name: port, transport):
-- http: 80 (tcp)
-- https: 443 (tcp)
-- ssh: 22 (tcp)
-- smb: 445 (tcp)
-- netbios: 139 (tcp)
-- rdp: 3389 (tcp)
-- vnc: 5900 (tcp)
-- mqtt: 1883 (tcp)
-- mqtts: 8883 (tcp)
-- mysql: 3306 (tcp)
-- postgres: 5432 (tcp)
-- redis: 6379 (tcp)
-- dns: 53 (udp)
-- ntp: 123 (udp)
-- ftp: 21 (tcp)
-- smtp: 25 (tcp)
-- imap: 143 (tcp)
-- imaps: 993 (tcp)
+The app ships with the following default services (name: port):
+- http: 80
+- https: 443
+- ssh: 22
+- smb: 445
+- netbios: 139
+- rdp: 3389
+- vnc: 5900
+- mqtt: 1883
+- mqtts: 8883
+- mysql: 3306
+- postgres: 5432
+- redis: 6379
+- ftp: 21
+- smtp: 25
+- imap: 143
+- imaps: 993
 
 ## Build
 Open `IP Scanner.xcodeproj` in Xcode and run the `IP Scanner` scheme.
