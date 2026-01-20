@@ -280,19 +280,26 @@ struct ContentView: View {
             }
             .buttonStyle(.bordered)
             .tint(hideNoResponse ? .blue : .primary)
+            .disabled(!hasResults)
 
             Button("Only With Services") {
                 onlyWithServices.toggle()
             }
             .buttonStyle(.bordered)
             .tint(onlyWithServices ? .blue : .primary)
+            .disabled(!hasResults)
 
             Button("Reset View") {
                 hideNoResponse = false
                 onlyWithServices = false
             }
             .buttonStyle(.bordered)
+            .disabled(!hasResults)
         }
+    }
+
+    private var hasResults: Bool {
+        !viewModel.results.isEmpty
     }
 
     private var resultsTable: some View {
