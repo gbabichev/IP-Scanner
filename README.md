@@ -9,7 +9,7 @@
 
 <!-- <h2></h2> -->
 <br>
-<p><b>IP Scanner is a macOS app for scanning IP ranges, resolving hostnames, and reporting open services.</p>
+<p><b>IP Scanner is a macOS app for scanning IP ranges, resolving hostnames, and reporting open services.</b></p>
 
 </div>
 
