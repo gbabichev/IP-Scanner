@@ -23,45 +23,29 @@ final class ServicesActionsModel: ObservableObject {
     }
 }
 
-enum ServiceTransport: String, Codable, CaseIterable, Sendable {
-    case tcp
-    case udp
-}
-
 struct ServiceConfig: Identifiable, Codable, Hashable, Sendable {
     let id: UUID
     var name: String
     var port: Int
-    var transport: ServiceTransport
     var isEnabled: Bool
 
-    init(id: UUID = UUID(), name: String, port: Int, transport: ServiceTransport, isEnabled: Bool) {
+    init(id: UUID = UUID(), name: String, port: Int, isEnabled: Bool) {
         self.id = id
         self.name = name
         self.port = port
-        self.transport = transport
         self.isEnabled = isEnabled
     }
 
     private enum CodingKeys: String, CodingKey {
         case name
         case port
-        case transport
         case isEnabled
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        let decodedName = try container.decode(String.self, forKey: .name)
-        let decodedPort = try container.decode(Int.self, forKey: .port)
-        let decodedTransport = try container.decodeIfPresent(ServiceTransport.self, forKey: .transport)
-        name = decodedName
-        port = decodedPort
-        transport = Self.resolveTransport(
-            name: decodedName,
-            port: decodedPort,
-            decodedTransport: decodedTransport
-        )
+        name = try container.decode(String.self, forKey: .name)
+        port = try container.decode(Int.self, forKey: .port)
         isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
         id = UUID()
     }
@@ -70,13 +54,12 @@ struct ServiceConfig: Identifiable, Codable, Hashable, Sendable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(name, forKey: .name)
         try container.encode(port, forKey: .port)
-        try container.encode(transport, forKey: .transport)
         try container.encode(isEnabled, forKey: .isEnabled)
     }
 
     static func defaultConfigs() -> [ServiceConfig] {
         ServiceCatalog.servicePorts.map { service in
-            ServiceConfig(name: service.name, port: Int(service.port), transport: service.transport, isEnabled: true)
+            ServiceConfig(name: service.name, port: Int(service.port), isEnabled: true)
         }
     }
 
@@ -169,23 +152,7 @@ struct ServiceConfig: Identifiable, Codable, Hashable, Sendable {
     }
 
     static func key(for config: ServiceConfig) -> String {
-        "\(config.name.lowercased()):\(config.port):\(config.transport.rawValue)"
-    }
-
-    private static func resolveTransport(
-        name: String,
-        port: Int,
-        decodedTransport: ServiceTransport?
-    ) -> ServiceTransport {
-        if let decodedTransport {
-            return decodedTransport
-        }
-        if let defaultMatch = ServiceCatalog.servicePorts.first(
-            where: { $0.name.lowercased() == name.lowercased() && Int($0.port) == port }
-        ) {
-            return defaultMatch.transport
-        }
-        return .tcp
+        "\(config.name.lowercased()):\(config.port)"
     }
 }
 

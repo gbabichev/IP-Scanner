@@ -15,7 +15,6 @@ struct SettingsView: View {
     @State private var configs: [ServiceConfig] = []
     @State private var newServiceName = ""
     @State private var newServicePort = ""
-    @State private var newServiceTransport: ServiceTransport = .tcp
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -33,7 +32,7 @@ struct SettingsView: View {
                                 Text(configs[index].name)
                             }
                             Spacer()
-                            Text("\(configs[index].port) \(configs[index].transport.rawValue.uppercased())")
+                            Text("\(configs[index].port)")
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -46,7 +45,7 @@ struct SettingsView: View {
                                 Text(configs[index].name)
                             }
                             Spacer()
-                            Text("\(configs[index].port) \(configs[index].transport.rawValue.uppercased())")
+                            Text("\(configs[index].port)")
                                 .foregroundStyle(.secondary)
                             Button {
                                 removeService(at: index)
@@ -94,14 +93,6 @@ struct SettingsView: View {
                 TextField("Port", text: $newServicePort)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 80)
-                Picker("", selection: $newServiceTransport) {
-                    ForEach(ServiceTransport.allCases, id: \.self) { transport in
-                        Text(transport.rawValue.uppercased())
-                            .tag(transport)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 140)
                 Button {
                     addService()
                 } label: {
@@ -140,11 +131,10 @@ struct SettingsView: View {
     private func addService() {
         guard canAddService, let port = Int(newServicePort) else { return }
         let name = newServiceName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let config = ServiceConfig(name: name, port: port, transport: newServiceTransport, isEnabled: true)
+        let config = ServiceConfig(name: name, port: port, isEnabled: true)
         configs.append(config)
         newServiceName = ""
         newServicePort = ""
-        newServiceTransport = .tcp
     }
 
     private func removeService(at index: Int) {
@@ -165,7 +155,7 @@ struct SettingsView: View {
         let commonNames = Set(["http", "https", "ssh", "ftp", "smb", "rdp", "vnc"])
         for index in configs.indices {
             let name = configs[index].name.lowercased()
-            configs[index].isEnabled = commonNames.contains(name) && configs[index].transport == .tcp
+            configs[index].isEnabled = commonNames.contains(name)
         }
     }
 

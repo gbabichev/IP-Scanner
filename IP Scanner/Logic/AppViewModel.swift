@@ -18,7 +18,6 @@ struct Service: Identifiable, Hashable, Sendable {
     let id = UUID()
     let name: String
     let port: UInt16
-    let transport: ServiceTransport
 }
 
 struct IPScanResult: Identifiable, Sendable {
@@ -328,16 +327,13 @@ final class AppViewModel: ObservableObject {
         let configs = ServiceConfig.decode(from: serviceConfigsJSON)
         return configs.compactMap { config in
             guard config.isEnabled, (1...65535).contains(config.port) else { return nil }
-            return Service(name: config.name, port: UInt16(config.port), transport: config.transport)
+            return Service(name: config.name, port: UInt16(config.port))
         }
     }
 
     private func discoveryPorts(from services: [Service]) -> [UInt16] {
-        let ports = services.filter { $0.transport == .tcp }.map { $0.port }
-        if ports.isEmpty {
-            return ServiceCatalog.discoveryPorts
-        }
-        return Array(Set(ports)).sorted()
+        let ports = services.map { $0.port }
+        return ports.isEmpty ? ServiceCatalog.discoveryPorts : Array(Set(ports)).sorted()
     }
 }
 
@@ -363,7 +359,6 @@ private enum Scanner {
                 let status = await checkPortStatus(
                     ip: ipString,
                     port: service.port,
-                    transport: service.transport,
                     timeout: 1.0
                 )
                 if status == .open {
@@ -372,9 +367,7 @@ private enum Scanner {
             }
         }
 
-        let summary = openServices.map { service in
-            service.transport == .udp ? "\(service.name) (udp)" : service.name
-        }.joined(separator: ", ")
+        let summary = openServices.map { $0.name }.joined(separator: ", ")
         return IPScanResult(
             ipAddress: ipString,
             ipValue: ipValue,
@@ -391,7 +384,7 @@ private enum Scanner {
             return true
         }
         for port in discoveryPorts {
-            let status = await checkPortStatus(ip: ip, port: port, transport: .tcp, timeout: 0.8)
+            let status = await checkPortStatus(ip: ip, port: port, timeout: 0.8)
             if status == .open || status == .closed {
                 return true
             }
@@ -408,7 +401,6 @@ private enum Scanner {
     private static func checkPortStatus(
         ip: String,
         port: UInt16,
-        transport: ServiceTransport,
         timeout: TimeInterval
     ) async -> PortStatus {
         await withCheckedContinuation { continuation in
@@ -418,7 +410,7 @@ private enum Scanner {
                 return
             }
 
-            let connection = NWConnection(host: host, port: nwPort, using: transport == .udp ? .udp : .tcp)
+            let connection = NWConnection(host: host, port: nwPort, using: .tcp)
             let queue = DispatchQueue(label: "port-check-\(ip)-\(port)")
             final class FinishState: @unchecked Sendable {
                 var didFinish = false
@@ -435,14 +427,7 @@ private enum Scanner {
             connection.stateUpdateHandler = { state in
                 switch state {
                 case .ready:
-                    if transport == .udp {
-                        let payload = Data([0x00])
-                        connection.send(content: payload, completion: .contentProcessed { error in
-                            finish(error == nil ? .open : .timeoutOrError)
-                        })
-                    } else {
-                        finish(.open)
-                    }
+                    finish(.open)
                 case .failed(let error):
                     if case .posix(let code) = error, code == .ECONNREFUSED {
                         finish(.closed)
