@@ -21,9 +21,7 @@ struct ContentView: View {
     @AppStorage("inputRange") private var storedRange: String = "192.168.1.1-192.168.1.15"
     @State private var inputRangeText: String = ""
     @AppStorage("serviceConfigsJSON") private var serviceConfigsJSON: String = ServiceConfig.defaultJSON()
-    @State private var exportDocument = CSVDocument(text: "")
     @State private var exportServicesDocument = ServiceConfigDocument(json: "")
-    @State private var isExporting = false
     @State private var isExportingServices = false
     @State private var isImportingServices = false
     @State private var isSettingsPresented = false
@@ -88,7 +86,11 @@ struct ContentView: View {
             inputRangeText = storedRange
             servicesActions.export = { beginExportServices() }
             servicesActions.import = { beginImportServices() }
-            exportActions.export = { beginExport() }
+            exportActions.export = {
+                Task { @MainActor in
+                    beginExport()
+                }
+            }
             exportActions.canExport = !viewModel.results.isEmpty
             refreshInterfaces()
             isRangeFocused = false
@@ -126,17 +128,6 @@ struct ContentView: View {
                 pendingServicesImport = false
                 beginImportServices()
             }
-        }
-        .fileExporter(
-            isPresented: $isExporting,
-            document: exportDocument,
-            contentType: .commaSeparatedText,
-            defaultFilename: "ip-scan-results"
-        ) { result in
-            if case .success(let url) = result {
-                viewModel.statusMessage = "Exported to \(url.lastPathComponent)"
-            }
-            isExporting = false
         }
         .fileExporter(
             isPresented: $isExportingServices,
@@ -180,11 +171,38 @@ struct ContentView: View {
     }
 
     private func beginExport() {
-        exportDocument = CSVDocument(text: viewModel.csvString())
-        isExporting = false
-        DispatchQueue.main.async {
-            isExporting = true
+        #if os(macOS)
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.commaSeparatedText]
+        panel.nameFieldStringValue = "ip-scan-results.csv"
+        panel.canCreateDirectories = true
+        panel.title = ""
+        panel.message = ""
+        panel.titleVisibility = .hidden
+        panel.titlebarAppearsTransparent = true
+        panel.standardWindowButton(.closeButton)?.isHidden = true
+        panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        panel.standardWindowButton(.zoomButton)?.isHidden = true
+        panel.prompt = "Save"
+
+        let handleResponse: (NSApplication.ModalResponse) -> Void = { response in
+            guard response == .OK, let url = panel.url else { return }
+            let csv = viewModel.csvString()
+            do {
+                try csv.write(to: url, atomically: true, encoding: .utf8)
+                viewModel.statusMessage = "Exported to \(url.lastPathComponent)"
+            } catch {
+                viewModel.statusMessage = "Export failed."
+            }
         }
+
+        if let window = NSApplication.shared.keyWindow {
+            panel.beginSheetModal(for: window, completionHandler: handleResponse)
+        } else {
+            let response = panel.runModal()
+            handleResponse(response)
+        }
+        #endif
     }
 
     private func beginExportServices() {
