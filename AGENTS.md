@@ -21,6 +21,7 @@ Quick reference for working on IP Scanner.
 - Host reachability uses ICMP ping first, then TCP port checks on discovery ports.
 - Service scanning is TCP-only (no UDP support).
 - Service configs are stored as JSON in `@AppStorage("serviceConfigsJSON")`.
+- File menu CSV export is wired through `ExportActionsModel` (avoids `focusedValue` performance issues).
 
 ## Data formats
 Service config JSON schema:

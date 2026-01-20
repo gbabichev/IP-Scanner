@@ -17,6 +17,7 @@ import AppKit
 struct ContentView: View {
     @StateObject private var viewModel = AppViewModel()
     @EnvironmentObject private var servicesActions: ServicesActionsModel
+    @EnvironmentObject private var exportActions: ExportActionsModel
     @AppStorage("inputRange") private var storedRange: String = "192.168.1.1-192.168.1.15"
     @State private var inputRangeText: String = ""
     @AppStorage("serviceConfigsJSON") private var serviceConfigsJSON: String = ServiceConfig.defaultJSON()
@@ -83,10 +84,13 @@ struct ContentView: View {
             inputRangeText = storedRange
             servicesActions.export = { beginExportServices() }
             servicesActions.import = { beginImportServices() }
+            exportActions.export = { beginExport() }
+            exportActions.canExport = !viewModel.results.isEmpty
             isRangeFocused = false
             updateSortedResults()
         }
-        .onChange(of: viewModel.results.count) { _, _ in
+        .onChange(of: viewModel.results.count) { _, newValue in
+            exportActions.canExport = newValue > 0
             updateSortedResults()
         }
         .onChange(of: hideNoResponse) { _, _ in
@@ -115,12 +119,6 @@ struct ContentView: View {
                 beginImportServices()
             }
         }
-        .focusedValue(
-            \.exportCSVAction,
-            viewModel.results.isEmpty ? nil : ExportCSVAction {
-                beginExport()
-            }
-        )
         .fileExporter(
             isPresented: $isExporting,
             document: exportDocument,

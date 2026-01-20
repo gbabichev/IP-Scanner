@@ -13,15 +13,16 @@ import SwiftUI
 @main
 struct IP_ScannerApp: App {
     
-    @FocusedValue(\.exportCSVAction) private var exportCSVAction
     @Environment(\.openWindow) private var openWindow
     @State private var isAboutPresented: Bool = false
     @StateObject private var servicesActions = ServicesActionsModel()
+    @StateObject private var exportActions = ExportActionsModel()
     
     var body: some Scene {
         WindowGroup(id: "main") {
             ContentView()
                 .environmentObject(servicesActions)
+                .environmentObject(exportActions)
                 .sheet(isPresented: $isAboutPresented) {
                     AboutView()
                 }
@@ -48,12 +49,12 @@ struct IP_ScannerApp: App {
             CommandGroup(after: .newItem) {
                 Divider()
                 Button {
-                    exportCSVAction?.action()
+                    exportActions.export?()
                 } label: {
                     Label("Export CSV…", systemImage: "square.and.arrow.up")
                 }
                 .keyboardShortcut("e")
-                .disabled(exportCSVAction == nil)
+                .disabled(!exportActions.canExport)
                 Divider()
             }
 
