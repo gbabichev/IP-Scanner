@@ -7,7 +7,6 @@
 </picture>
 <br/><br/>
 
-<!-- <h2></h2> -->
 <br>
 <p><b>IP Scanner is a macOS app for scanning IP ranges, resolving hostnames, and reporting open services.</b></p>
 
@@ -16,17 +15,6 @@
 <p align="center">
     <a href="Documentation/App1.png"><img src="Documentation/App1.png" width="30%"></a>
 </p>
-
-
-
-
-
-
-
-
-
-
-
 
 ## Features
 - Scan a single IP or range (for example `192.168.1.1-192.168.1.15`).
@@ -44,7 +32,7 @@
 5. Use the menu bar to export results or manage services.
 
 ## Services Export
-Custom services can be exported from the Services menu, and custom service sets can be imported as JSON.
+Custom services can be imported/exported from the Services menu. 
 
 JSON schema (each entry in the array is a service):
 ```json
@@ -59,7 +47,7 @@ JSON schema (each entry in the array is a service):
 
 Notes:
 - `name` is a human-friendly label.
-- `port` is the port number.
+- `port` is the port number (TCP).
 - `isEnabled` controls whether the service is used during scans.
 
 ## Default Services
@@ -81,5 +69,29 @@ The app ships with the following default services (name: port):
 - imap: 143
 - imaps: 993
 
-## Build
-Open `IP Scanner.xcodeproj` in Xcode and run the `IP Scanner` scheme.
+## 🖥️ Install & Minimum Requirements
+
+- macOS 14.0 or later  
+- Apple Silicon & Intel (not tested on Intel)
+- ~10 MB free disk space  
+
+### ⚙️ Installation
+
+Download from Releases. It's signed & notarized.
+
+### ⚙️ Build it yourself!
+
+Clone the repo and build with Xcode:
+
+```bash
+git clone https://github.com/gbabichev/IP-Scanner.git
+```
+
+## 📝 Changelog
+
+### 1.0.0
+- Initial release
+
+## 📄 License
+
+MIT — free for personal and commercial use. 
