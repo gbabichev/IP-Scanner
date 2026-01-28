@@ -89,6 +89,9 @@ git clone https://github.com/gbabichev/IP-Scanner.git
 
 ## 📝 Changelog
 
+### 1.0.0 Build 2
+- Added text that shows how many hosts are alive after a scan.
+
 ### 1.0.0
 - Initial release
 

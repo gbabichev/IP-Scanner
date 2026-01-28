@@ -319,8 +319,8 @@ struct ContentView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
-                if shouldShowSummary {
-                    Text("Showing \(sortedResults.count)/\(viewModel.results.count) IPs.")
+                if shouldShowSummary && !viewModel.isScanning {
+                    Text("Total IPs: \(viewModel.results.count) Alive: \(aliveCount)")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -389,6 +389,10 @@ struct ContentView: View {
 
     private var shouldShowSummary: Bool {
         !viewModel.results.isEmpty
+    }
+
+    private var aliveCount: Int {
+        viewModel.results.filter { $0.isAlive }.count
     }
 
     private var shouldShowEmptyState: Bool {
