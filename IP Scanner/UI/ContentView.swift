@@ -71,10 +71,12 @@ struct ContentView: View {
         
         .padding(16)
         .frame(minWidth: 520, minHeight: 420)
+#if DEBUG
         .overlay(alignment: .bottomTrailing) {
             BetaTag()
                 .padding(12)
         }
+#endif
         .overlay(alignment: .top) {
             toastView
         }
